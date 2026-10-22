@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#090d16" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -89,6 +89,8 @@ body {
   border-right: 1px solid var(--border);
   backdrop-filter: blur(8px);
 }
+
+.sidebar-head { display: contents; }
 
 .brand { display: flex; align-items: center; gap: 12px; padding: 4px 6px; }
 .brand-mark {
@@ -351,10 +353,10 @@ textarea.input { padding: 10px 12px; min-height: 78px; resize: vertical; font-fa
 
 /* Brief lines */
 .brief-line {
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  gap: 12px; align-items: start;
-  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -363,10 +365,10 @@ textarea.input { padding: 10px 12px; min-height: 78px; resize: vertical; font-fa
 }
 .brief-line + .brief-line { margin-top: 12px; }
 .brief-line:hover { border-color: var(--border-hi); transform: translateY(-1px); }
-.brief-line .bl-tags { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-.brief-line .bl-source { align-self: center; }
+.brief-line .bl-badges { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 80px; flex-shrink: 0; }
+.brief-line .bl-content { flex: 1; min-width: 0; }
 .brief-line .bl-title { font-weight: 700; font-size: 14px; color: #fff; }
-.brief-line .bl-body { color: var(--txt-2); font-size: 13px; margin-top: 3px; line-height: 1.45; }
+.brief-line .bl-body { color: var(--txt-2); font-size: 13px; margin-top: 3px; line-height: 1.45; word-break: break-word; }
 .brief-line .bl-meta { font-family: var(--mono); font-size: 11px; color: var(--txt-3); margin-top: 6px; }
 .borrowed-note { font-style: italic; color: var(--amber); font-size: 12px; margin-top: 6px; }
 
@@ -454,46 +456,382 @@ textarea.input { padding: 10px 12px; min-height: 78px; resize: vertical; font-fa
 @keyframes toastOut { to { opacity: 0; transform: translateY(12px); } }
 
 /* =====================================================================
-   Responsive — mobile first adaptations
+   Responsive — Native Android & iOS Mobile Adaptations
    ===================================================================== */
 @media (max-width: 900px) {
-  .app-shell { grid-template-columns: 1fr; }
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .app-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    min-height: 100vh;
+  }
+
+  /* Single sticky top header bar with frosted glass */
   .sidebar {
-    position: sticky; top: 0; z-index: 30;
-    height: auto; flex-direction: column; gap: 12px;
-    padding: 12px 14px;
-    border-right: 0; border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: auto;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 14px 6px;
+    background: rgba(9, 13, 22, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
   }
-  .brand { padding: 0; }
+
+  .sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .brand {
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    border-radius: 9px;
+  }
+  .brand-title {
+    font-size: 15px;
+    letter-spacing: 1.5px;
+  }
+  .brand-sub {
+    font-size: 10px;
+    letter-spacing: 0.2px;
+    display: none;
+  }
+
+  .sidebar-foot {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    font-family: var(--mono);
+    color: var(--txt-2);
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Horizontal touch-friendly tab bar */
   .nav {
-    flex-direction: row; gap: 6px; overflow-x: auto; padding-bottom: 4px;
-    -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    width: 100%;
+    padding: 2px 0 6px;
+    margin: 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
-  .nav-item { flex: 0 0 auto; min-height: 40px; padding: 8px 12px; }
-  .nav-item .nav-label { white-space: nowrap; }
-  .nav-item.active { box-shadow: inset 0 -2px 0 var(--blue); }
-  .sidebar-foot { display: none; }
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+  .nav-item {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+  .nav-item .nav-ico {
+    font-size: 14px;
+  }
+  .nav-item.active {
+    background: rgba(88, 166, 255, 0.16);
+    border-color: var(--blue);
+    color: var(--blue);
+    box-shadow: none;
+  }
 
-  .topbar { padding: 12px 14px; }
-  .topbar-title { font-size: 17px; }
-  .topbar-sub { display: none; }
-  .topbar-right { gap: 10px; width: 100%; justify-content: space-between; }
-  .actions { flex: 1; justify-content: flex-end; }
-  .btn { padding: 0 11px; font-size: 12px; min-height: 38px; }
-  .pause-banner { margin: 12px 14px 0; }
-  .view { padding: 16px 14px 50px; }
+  /* Main scroll container */
+  .main {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
 
-  .brief-line { grid-template-columns: 1fr; }
-  .brief-line .bl-source { order: -1; }
-  .brief-line .bl-tags { flex-direction: row; flex-wrap: wrap; }
+  /* Sub-header with power toggle and action buttons (non-sticky to avoid clutter) */
+  .topbar {
+    position: static !important;
+    padding: 12px 14px 6px;
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .topbar-left {
+    display: none !important;
+  }
+  .topbar-right {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Power toggle switch card */
+  .power {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card);
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    box-sizing: border-box;
+  }
+  .power-label {
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* 3-Button Action Grid */
+  .actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .btn {
+    width: 100%;
+    min-height: 40px;
+    padding: 0 4px;
+    font-size: 11.5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+    touch-action: manipulation;
+    box-sizing: border-box;
+  }
+
+  .pause-banner {
+    margin: 10px 14px 0;
+    padding: 10px 14px;
+    font-size: 12px;
+    box-sizing: border-box;
+  }
+
+  /* View container */
+  .view {
+    padding: 14px 14px 60px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+  .card {
+    padding: 14px 12px;
+    border-radius: var(--radius-sm);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .section-head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .section-head > div {
+    width: 100%;
+  }
+  .section-title {
+    font-size: 14.5px;
+  }
+  .section-sub {
+    font-size: 11.5px;
+  }
+  .window-badge {
+    align-self: flex-start;
+  }
+
+  /* Tab 1: Brief Line Mobile Layout */
+  .brief-line {
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .brief-line .bl-badges {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+  .brief-line .bl-title {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .brief-line .bl-body {
+    font-size: 12.5px;
+    line-height: 1.45;
+    word-break: break-word;
+  }
+  .brief-line .bl-meta {
+    font-size: 10.5px;
+    word-break: break-word;
+  }
+  .brief-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+
+  /* Tab 2: Cadence intervals */
+  .intervals {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px;
+  }
+  .interval-btn {
+    min-height: 44px;
+    font-size: 12.5px;
+    padding: 6px;
+  }
+
+  /* Tab 3 & 4: Forms & Chips */
+  .chips {
+    gap: 6px;
+  }
+  .chip {
+    font-size: 12px;
+    min-height: 34px;
+    padding: 0 10px;
+    touch-action: manipulation;
+  }
+  .form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0;
+  }
+  .input, .select, textarea.input {
+    font-size: 16px !important; /* Prevents auto-zoom on mobile Chrome */
+  }
+
+  /* Responsive Horizontal Scroll Tables */
+  .table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-sm);
+    margin: 0;
+    display: block;
+    box-sizing: border-box;
+  }
+  .table {
+    min-width: 480px;
+    width: 100%;
+    font-size: 12px;
+  }
+  .table th, .table td {
+    padding: 8px 10px;
+  }
+  .seg button {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+  .del-app, .del-em {
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  /* Tab 5: 2x2 Fire Drill Scorecard */
+  .metrics {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px;
+  }
+  .metric {
+    padding: 12px 10px;
+    border-radius: var(--radius-sm);
+  }
+  .metric .m-label {
+    font-size: 10px;
+    letter-spacing: 0.3px;
+  }
+  .metric .m-value {
+    font-size: 22px;
+    margin-top: 4px;
+  }
+  .metric .m-note {
+    font-size: 10px;
+  }
+
+  /* Toast alerts */
+  .toast-wrap {
+    width: calc(100% - 24px) !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    transform: none !important;
+  }
+  .toast {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
 }
 
-@media (max-width: 430px) {
-  .topbar-right { flex-wrap: wrap; }
-  .power { width: 100%; justify-content: space-between; }
-  .actions { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .btn { width: 100%; padding: 0 4px; font-size: 11.5px; }
-  .input, .select { font-size: 16px; }
+@media (max-width: 360px) {
+  .actions {
+    grid-template-columns: 1fr;
+  }
+  .intervals {
+    grid-template-columns: 1fr !important;
+  }
+  .metrics {
+    grid-template-columns: 1fr !important;
+  }
 }
   </style>
 </head>
@@ -502,11 +840,19 @@ textarea.input { padding: 10px 12px; min-height: 78px; resize: vertical; font-fa
 
     <!-- ============ SIDEBAR / TOP NAV ============ -->
     <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">H</div>
-        <div class="brand-text">
-          <div class="brand-title">HUSH</div>
-          <div class="brand-sub">Local Attention Router</div>
+      <div class="sidebar-head">
+        <div class="brand">
+          <div class="brand-mark">H</div>
+          <div class="brand-text">
+            <div class="brand-title">HUSH</div>
+            <div class="brand-sub">Local Attention Router</div>
+          </div>
+        </div>
+
+        <div class="sidebar-foot">
+          <span class="dot" id="connDot"></span>
+          <span id="connText">connecting…</span>
+          <span class="demo-pill" id="demoPill" hidden>DEMO</span>
         </div>
       </div>
 
@@ -530,12 +876,6 @@ textarea.input { padding: 10px 12px; min-height: 78px; resize: vertical; font-fa
           <span class="nav-ico">🗑️</span><span class="nav-label">Discard Pile</span>
         </button>
       </nav>
-
-      <div class="sidebar-foot">
-        <span class="dot" id="connDot"></span>
-        <span id="connText">connecting…</span>
-        <span class="demo-pill" id="demoPill" hidden>DEMO</span>
-      </div>
     </aside>
 
     <!-- ============ MAIN ============ -->
@@ -922,14 +1262,17 @@ textarea.input { padding: 10px 12px; min-height: 78px; resize: vertical; font-fa
       b.lines.forEach((l) => {
         html +=
           `<div class="brief-line">` +
-            `<div class="bl-tags"><span class="badge ${U.tagClass(l.reason_tag)}">${U.tagLabel(l.reason_tag)}</span></div>` +
-            `<span class="pill">${U.sourceLabel(l.source)}</span>` +
-            `<div>` +
+            `<div class="bl-badges">` +
+              `<span class="badge ${U.tagClass(l.reason_tag)}">${U.tagLabel(l.reason_tag)}</span>` +
+              `<span class="pill">${U.sourceLabel(l.source)}</span>` +
+            `</div>` +
+            `<div class="bl-content">` +
               `<div class="bl-title">${U.escape(l.title)}</div>` +
               `<div class="bl-body">${U.escape(l.body)}</div>` +
               `<div class="bl-meta">${U.escape(l.source)} · ${U.clock(l.received_at)} · score ${U.score(l.score)}</div>` +
               (l.borrowed ? `<div class="borrowed-note">↳ (borrowed slot)</div>` : "") +
-            `</div></div>`;
+            `</div>` +
+          `</div>`;
       });
     }
     html += `</div>`;
