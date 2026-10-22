@@ -1683,12 +1683,21 @@ class HushHTTPHandler(BaseHTTPRequestHandler):
 
                 unclassified = get_unclassified_notifications(conn, limit=50)
                 classified_count = 0
+                now = datetime.now().astimezone()
                 for row in unclassified:
                     notif = dict(row)
                     proj = to_classifier_projection(notif)
                     judgment = classify_notification(proj)
                     insert_judgment(conn, judgment)
-                    if judgment["score"] >= T_HIGH:
+
+                    # Only trigger immediate audio/visual alert for recent live notifications (within 3m)
+                    try:
+                        rec_dt = datetime.fromisoformat(notif["received_at"])
+                        is_recent = (now - rec_dt).total_seconds() < 180
+                    except Exception:
+                        is_recent = False
+
+                    if judgment["score"] >= T_HIGH and is_recent:
                         handle_interrupt(conn, notif, judgment)
                     classified_count += 1
                 conn.commit()

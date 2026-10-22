@@ -67,7 +67,7 @@ def generate_brief(
     )
     all_candidates = [dict(row) for row in cursor.fetchall()]
 
-    # If no records in the exact 3h window, fall back to the most recent un-briefed batch for testing/demo
+    # If no records in the exact window, fall back to the most recent un-briefed batch for testing/demo
     if not all_candidates:
         cursor = conn.execute(
             """
@@ -79,9 +79,6 @@ def generate_brief(
             """
         )
         all_candidates = [dict(row) for row in cursor.fetchall()]
-        if all_candidates:
-            start_iso = all_candidates[-1]["received_at"]
-            end_iso = all_candidates[0]["received_at"]
 
     # Separate qualifying candidates from below-threshold items
     # Exclude immediate interrupts (score >= T_HIGH) from brief unless no separate push channel
@@ -177,9 +174,9 @@ def generate_brief(
     try:
         end_dt = datetime.fromisoformat(end_iso)
         next_brief_dt = end_dt + timedelta(minutes=window_minutes)
-        next_brief_str = next_brief_dt.strftime("%H:%M")
+        next_brief_iso = next_brief_dt.isoformat()
     except Exception:
-        next_brief_str = f"in {window_minutes}m"
+        next_brief_iso = (datetime.now().astimezone() + timedelta(minutes=window_minutes)).isoformat()
 
     brief_id = insert_brief(
         conn=conn,
@@ -201,5 +198,5 @@ def generate_brief(
         "cut_count": cut_count,
         "borrowed": borrowed_slots,
         "rejected_log": rejected_log,
-        "next_brief_time": next_brief_str,
+        "next_brief_time": next_brief_iso,
     }

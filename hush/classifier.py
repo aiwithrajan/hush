@@ -174,6 +174,62 @@ def classify_notification(
         judgment_data = rule_based_fallback_classifier(notif)
         used_model = f"{model_name}-fallback"
 
+    # Deterministic Safety Boundary & Clamping
+    text_lower = f"{notif.get('title', '')} {notif.get('body', '')}".lower()
+
+    # 1. Promotional & noise clamp: Marketing/sales/social updates are NEVER emergencies
+    promo_indicators = [
+        "discount", "offer", "sale", "flat 50%", "flat 40%", "coupon", "code feast",
+        "pre-approved", "personal loan", "cashback", "save up to", "newsletter",
+        "biryani", "food sales", "buy 1 get 1", "limited period offer",
+        "posted a photo", "posted in a group", "shared a post", "sent a snap",
+        "view story", "friend request", "streak with", "new followers", "appeared in searches",
+        "order delivered", "swiggy", "zomato", "nykaa", "40% off"
+    ]
+    if any(k in text_lower for k in promo_indicators):
+        judgment_data["category"] = "promo"
+        judgment_data["urgency"] = min(judgment_data["urgency"], 0.10)
+        judgment_data["reason"] = "Promotional or social feed noise (silenced by guardrail)"
+
+    # 2. Family / Personal SOS emergency recognition
+    person_sos_pattern = r"\b(broke down|accident|engine smoking|stranded|battery at \d%|pick me up|urgent phone|recharge / assistance|emergency landing)\b"
+    if re.search(person_sos_pattern, text_lower):
+        judgment_data["category"] = "person"
+        judgment_data["urgency"] = max(judgment_data["urgency"], 0.88)
+        judgment_data["reason"] = "Family or personal roadside/travel emergency"
+
+    # 3. Work P0 production outage / Security incident recognition
+    p0_pattern = r"\b(p0|prod outage|primary unresponsive|traffic failing|root credentials leaked|security incident|pagerduty)\b"
+    if re.search(p0_pattern, text_lower):
+        judgment_data["category"] = "work"
+        judgment_data["urgency"] = max(judgment_data["urgency"], 0.90)
+        judgment_data["reason"] = "Critical P0 production outage or security escalation"
+
+    # 4. Critical financial fraud / banking alert
+    fraud_pattern = r"\b(unauthorized|suspicious debit|debit of|overdraft alert|freeze will apply|fraud prevention)\b"
+    if re.search(fraud_pattern, text_lower):
+        judgment_data["category"] = "money"
+        judgment_data["urgency"] = max(judgment_data["urgency"], 0.90)
+        judgment_data["reason"] = "Critical financial or bank fraud alert"
+
+    # 5. Life safety / fire / evacuation
+    life_safety_pattern = r"\b(fire reported|evacuate building|flash flood warning|seek higher ground|4-alarm fire)\b"
+    if re.search(life_safety_pattern, text_lower):
+        judgment_data["category"] = "health"
+        judgment_data["urgency"] = max(judgment_data["urgency"], 0.95)
+        judgment_data["reason"] = "Life safety fire or environmental alert"
+
+    # 6. Medical emergency validation: Prevent false health emergency classifications
+    medical_pattern = r"\b(hospital|er|emergency|doctor|clinic|patient|collapse|prescription|allergy|accident|ambulance|cardiac|stroke|bleeding|injury)\b"
+    if judgment_data["category"] == "health" and not re.search(medical_pattern, text_lower):
+        judgment_data["category"] = "work"
+        judgment_data["urgency"] = min(judgment_data["urgency"], 0.30)
+        judgment_data["reason"] = "De-escalated non-emergency notification"
+
+    # 7. Routine financial alerts (non-fraud)
+    if judgment_data["category"] == "money" and judgment_data["urgency"] > 0.50 and not re.search(fraud_pattern, text_lower):
+        judgment_data["urgency"] = min(judgment_data["urgency"], 0.35)
+
     score, consequence, decay = calculate_score(
         urgency=judgment_data["urgency"],
         category=judgment_data["category"],
