@@ -928,7 +928,10 @@ textarea.input { padding: 10px 12px; min-height: 78px; resize: vertical; font-fa
     now: () => Date.now(),
     ago(ms) { return Date.now() - ms; },
     clock(ts) {
+      if (!ts) return "—";
+      if (typeof ts === "string" && /^\d{2}:\d{2}$/.test(ts.trim())) return ts.trim();
       const d = new Date(ts);
+      if (isNaN(d.getTime())) return String(ts);
       return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
     },
     clockSec(ts) {
