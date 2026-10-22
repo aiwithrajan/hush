@@ -98,4 +98,35 @@ def check_and_escalate_unacknowledged(conn):
             sound="Sosumi",
         )
         escalate_interrupt(conn, interrupt_id)
-        conn.commit()
+
+
+def deliver_summary_notification(brief: Dict[str, Any]) -> Dict[str, str]:
+    """Delivers the clean, quiet cadence summary notification.
+
+    Crucial design principle: Raw individual notifications are NEVER shown in this alert.
+    Only the high-level aggregate brief is surfaced to maintain silence integrity.
+    """
+    kept_count = brief.get("kept_count", len(brief.get("lines", [])))
+    cut_count = brief.get("cut_count", 0)
+
+    sources = {}
+    for line in brief.get("lines", []):
+        s = (line.get("source") or "other").upper()
+        sources[s] = sources.get(s, 0) + 1
+
+    src_text = ", ".join(f"{cnt} {s}" for s, cnt in sources.items()) if sources else "0 items"
+    title = f"Quiet Summary ({kept_count} Kept)"
+    subtitle = f"{src_text} · {cut_count} silenced during quiet window"
+    body = "Cadence window reached. Open Hush dashboard to review your 4-line brief."
+
+    deliver_macos_notification(
+        title=title,
+        subtitle=subtitle,
+        body=body,
+        sound="Blow",
+    )
+    return {
+        "title": f"Hush · {title}",
+        "subtitle": subtitle,
+        "body": body,
+    }
