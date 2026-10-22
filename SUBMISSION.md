@@ -1,7 +1,10 @@
 # I Hid 10 Emergencies in My Own Notifications. It Found 9 — and Woke Me for 3 That Weren't.
 
 > **Built for the Hacktoberfest Open-Source AI Challenge, Week 3 — "Slow and Steady"**  
-> *Targeting: Overall Winner ($250) · Best Use of Gemma ($200) · Best Use of Temporal ($100)*
+> *Targeting: Overall Winner ($250) · Best Use of Gemma ($200) · Best Use of Temporal ($100)*  
+> 🌐 **Live Web Demo**: [https://aiwithrajan.github.io/hush/](https://aiwithrajan.github.io/hush/)  
+> 📦 **GitHub Repository**: [https://github.com/aiwithrajan/hush](https://github.com/aiwithrajan/hush)  
+> 🎥 **Walkthrough Video**: [`hush_demo_1080p.mp4`](hush_demo_1080p.mp4)
 
 ---
 

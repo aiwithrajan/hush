@@ -1,6 +1,8 @@
 # Hush
 
-> **A local attention router that reads every notification so you only have to read four.**
+> **A local attention router that reads every notification so you only have to read four.**  
+> 🌐 **Live Zero-Install Demo**: [https://aiwithrajan.github.io/hush/](https://aiwithrajan.github.io/hush/)  
+> 🎥 **Demo Video (1080p)**: [`hush_demo_1080p.mp4`](hush_demo_1080p.mp4)
 
 Built for the **Hacktoberfest Open-Source AI Challenge, Week 3 — "Slow and Steady"**.
 
