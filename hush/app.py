@@ -792,6 +792,8 @@ HTML_PAGE = """<!DOCTYPE html>
 
                 <div class="chips-row">
                     <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Quick App Presets:</span>
+                    <button class="chip" onclick="fillAppPreset('Facebook', 'com.facebook.Facebook', 'facebook')">+ Facebook</button>
+                    <button class="chip" onclick="fillAppPreset('Snapchat', 'com.toyopagroup.picaboo', 'snapchat')">+ Snapchat</button>
                     <button class="chip" onclick="fillAppPreset('Telegram', 'org.telegram.desktop', 'telegram')">+ Telegram</button>
                     <button class="chip" onclick="fillAppPreset('Slack', 'com.tinyspeck.slackmacgap', 'slack')">+ Slack</button>
                     <button class="chip" onclick="fillAppPreset('Discord', 'com.hnc.Discord', 'discord')">+ Discord</button>
@@ -803,15 +805,17 @@ HTML_PAGE = """<!DOCTYPE html>
                 <div class="form-row">
                     <div class="form-group">
                         <label>App Name</label>
-                        <input type="text" id="app-name-input" placeholder="e.g. Telegram">
+                        <input type="text" id="app-name-input" placeholder="e.g. Facebook">
                     </div>
                     <div class="form-group" style="flex: 1.5;">
                         <label>Bundle ID or Keyword</label>
-                        <input type="text" id="app-id-input" placeholder="e.g. org.telegram.desktop or telegram">
+                        <input type="text" id="app-id-input" placeholder="e.g. com.facebook.Facebook or snapchat">
                     </div>
                     <div class="form-group">
                         <label>Source Channel</label>
                         <select id="app-source-select">
+                            <option value="facebook">Facebook</option>
+                            <option value="snapchat">Snapchat</option>
                             <option value="telegram">Telegram</option>
                             <option value="slack">Slack</option>
                             <option value="discord">Discord</option>

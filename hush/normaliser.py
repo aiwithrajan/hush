@@ -12,6 +12,10 @@ def map_source(app_id: str, custom_rules: Optional[Dict[str, str]] = None) -> st
     app_lower = (app_id or "").lower()
     if any(k in app_lower for k in ["whatsapp", "net.whatsapp"]):
         return "wa"
+    elif any(k in app_lower for k in ["facebook", "katana", "orca"]):
+        return "facebook"
+    elif any(k in app_lower for k in ["snapchat", "picaboo"]):
+        return "snapchat"
     elif any(k in app_lower for k in ["telegram", "org.telegram"]):
         return "telegram"
     elif any(k in app_lower for k in ["slack", "tinyspeck"]):
