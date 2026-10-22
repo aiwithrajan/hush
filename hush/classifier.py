@@ -203,6 +203,7 @@ def classify_notification(
     if re.search(p0_pattern, text_lower):
         judgment_data["category"] = "work"
         judgment_data["urgency"] = max(judgment_data["urgency"], 0.90)
+        judgment_data["deadline_at"] = notif.get("received_at")
         judgment_data["reason"] = "Critical P0 production outage or security escalation"
 
     # 4. Critical financial fraud / banking alert
@@ -213,14 +214,14 @@ def classify_notification(
         judgment_data["reason"] = "Critical financial or bank fraud alert"
 
     # 5. Life safety / fire / evacuation
-    life_safety_pattern = r"\b(fire reported|evacuate building|flash flood warning|seek higher ground|4-alarm fire)\b"
+    life_safety_pattern = r"\b(fire|evacuate|flash flood|higher ground|weather alert|4-alarm fire|tsunami)\b"
     if re.search(life_safety_pattern, text_lower):
         judgment_data["category"] = "health"
         judgment_data["urgency"] = max(judgment_data["urgency"], 0.95)
         judgment_data["reason"] = "Life safety fire or environmental alert"
 
     # 6. Medical emergency validation: Prevent false health emergency classifications
-    medical_pattern = r"\b(hospital|er|emergency|doctor|clinic|patient|collapse|prescription|allergy|accident|ambulance|cardiac|stroke|bleeding|injury)\b"
+    medical_pattern = r"\b(hospital|er|emergency|doctor|clinic|patient|collapse|prescription|allergy|accident|ambulance|cardiac|stroke|bleeding|injury|fire|flood|evacuate|safety|weather alert)\b"
     if judgment_data["category"] == "health" and not re.search(medical_pattern, text_lower):
         judgment_data["category"] = "work"
         judgment_data["urgency"] = min(judgment_data["urgency"], 0.30)
