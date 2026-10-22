@@ -112,6 +112,66 @@ HTML_PAGE = """<!DOCTYPE html>
             letter-spacing: 0.5px;
             text-transform: uppercase;
         }
+        .badge-paused {
+            background: #382405;
+            color: #f0883e;
+            border: 1px solid #f0883e55;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 12px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        /* Power Toggle Switch */
+        .power-toggle-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: #0f1623;
+            border: 1px solid var(--border);
+            padding: 3px 9px;
+            border-radius: 20px;
+        }
+        .power-switch {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+        }
+        .power-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .power-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #212d3d;
+            border: 1px solid #364960;
+            transition: .25s ease;
+            border-radius: 20px;
+        }
+        .power-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: #7d8c9e;
+            transition: .25s ease;
+            border-radius: 50%;
+        }
+        input:checked + .power-slider {
+            background-color: #238636;
+            border-color: #2ea043;
+        }
+        input:checked + .power-slider:before {
+            transform: translateX(16px);
+            background-color: #ffffff;
+        }
         .brand p {
             color: var(--text-secondary);
             font-size: 13px;
@@ -632,7 +692,14 @@ HTML_PAGE = """<!DOCTYPE html>
             <div class="brand">
                 <div class="brand-title-row">
                     <h1>Hush</h1>
-                    <span class="badge-live">Local Gemma</span>
+                    <div class="power-toggle-container" title="Master ON/OFF Switch">
+                        <span style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary);">STATUS</span>
+                        <label class="power-switch">
+                            <input type="checkbox" id="master-toggle" checked onchange="toggleMasterPower(this.checked)">
+                            <span class="power-slider"></span>
+                        </label>
+                        <span id="power-status-badge" class="badge-live">ON</span>
+                    </div>
                 </div>
                 <p>A local attention router that reads every notification and email so you only have to read four.</p>
             </div>
@@ -642,6 +709,11 @@ HTML_PAGE = """<!DOCTYPE html>
                 <button class="primary" onclick="runFireDrill()" id="btn-drill">🎯 Fire Drill</button>
             </div>
         </header>
+
+        <!-- Master Paused Alert Banner -->
+        <div id="paused-warning-banner" style="display: none; background: #261704; border: 1px solid #e3b34177; color: #ffd369; padding: 12px 16px; border-radius: var(--radius-md); font-size: 13px; margin-bottom: 16px; font-weight: 600;">
+            ⏸️ <strong>Hush is PAUSED (OFF)</strong> — Normal device notifications are flowing through without quiet window filtering. Flip the ON/OFF switch above whenever you want to re-enable focus.
+        </div>
 
         <!-- Navigation Tabs -->
         <nav class="tabs-nav">
@@ -1430,6 +1502,50 @@ HTML_PAGE = """<!DOCTYPE html>
             }
         }
 
+        async function loadMasterStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                const isAct = data.is_active;
+                const toggle = document.getElementById('master-toggle');
+                const badge = document.getElementById('power-status-badge');
+                const banner = document.getElementById('paused-warning-banner');
+                if (toggle) toggle.checked = isAct;
+                if (badge) {
+                    badge.innerText = isAct ? "ON" : "OFF";
+                    badge.className = isAct ? "badge-live" : "badge-paused";
+                }
+                if (banner) {
+                    banner.style.display = isAct ? "none" : "block";
+                }
+            } catch (e) {
+                console.error("Failed to load master status", e);
+            }
+        }
+
+        async function toggleMasterPower(isActive) {
+            try {
+                const res = await fetch('/api/status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active: isActive })
+                });
+                const data = await res.json();
+                const badge = document.getElementById('power-status-badge');
+                const banner = document.getElementById('paused-warning-banner');
+                if (badge) {
+                    badge.innerText = isActive ? "ON" : "OFF";
+                    badge.className = isActive ? "badge-live" : "badge-paused";
+                }
+                if (banner) {
+                    banner.style.display = isActive ? "none" : "block";
+                }
+                showToast(isActive ? "🟢 Hush is now ON (Quiet filtering active)" : "⏸️ Hush is now OFF (Standby)");
+            } catch (e) {
+                showToast("Failed to toggle status");
+            }
+        }
+
         function escapeHtml(str) {
             return (str || '').replace(/[&<>"']/g, function(m) {
                 return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[m];
@@ -1437,6 +1553,7 @@ HTML_PAGE = """<!DOCTYPE html>
         }
 
         window.onload = () => {
+            loadMasterStatus();
             loadBrief();
             loadSettings();
         };
@@ -1479,6 +1596,10 @@ class HushHTTPHandler(BaseHTTPRequestHandler):
 
         if path in ("/", "/index.html"):
             self._send_html(HTML_PAGE)
+        elif path == "/api/status":
+            with get_db() as conn:
+                st = get_setting(conn, "hush_status", "active")
+                self._send_json({"status": st, "is_active": st == "active"})
         elif path == "/api/brief":
             with get_db() as conn:
                 brief_data = generate_brief(conn)
@@ -1508,8 +1629,20 @@ class HushHTTPHandler(BaseHTTPRequestHandler):
         path = parsed.path
         body = self._read_json()
 
-        if path == "/api/collect":
+        if path == "/api/status":
+            is_active = body.get("active", True)
+            status_str = "active" if is_active else "paused"
             with get_db() as conn:
+                set_setting(conn, "hush_status", status_str)
+                self._send_json({"success": True, "status": status_str, "is_active": is_active})
+
+        elif path == "/api/collect":
+            with get_db() as conn:
+                st = get_setting(conn, "hush_status", "active")
+                if st == "paused":
+                    self._send_json({"status": "paused", "scanned": 0, "inserted": 0, "duplicates": 0, "errors": 0, "message": "Hush is paused (OFF)"})
+                    return
+
                 mac_stats = collect_macos_notifications(dest_conn=conn)
                 email_stats = poll_all_configured_emails(dest_conn=conn)
                 total_stats = {
@@ -1522,6 +1655,11 @@ class HushHTTPHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/classify":
             with get_db() as conn:
+                st = get_setting(conn, "hush_status", "active")
+                if st == "paused":
+                    self._send_json({"status": "paused", "classified": 0, "message": "Hush is paused (OFF)"})
+                    return
+
                 unclassified = get_unclassified_notifications(conn, limit=50)
                 classified_count = 0
                 for row in unclassified:
