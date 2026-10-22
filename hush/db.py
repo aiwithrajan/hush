@@ -193,8 +193,8 @@ def save_app_rule(
         INSERT INTO app_rules (app_id, name, source, priority, is_active, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(app_id) DO UPDATE SET
-            name = excluded.name,
-            source = excluded.source,
+            name = CASE WHEN excluded.name != '' AND excluded.name != excluded.app_id THEN excluded.name ELSE app_rules.name END,
+            source = CASE WHEN excluded.source != '' AND excluded.source != 'other' THEN excluded.source ELSE app_rules.source END,
             priority = excluded.priority,
             is_active = excluded.is_active
         """,
