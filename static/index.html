@@ -2,8 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#090d16" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤫</text></svg>">
   <title>HUSH — Local Attention Router</title>
   <style>
 /* =====================================================================
@@ -487,8 +491,9 @@ textarea.input { padding: 10px 12px; min-height: 78px; resize: vertical; font-fa
 @media (max-width: 430px) {
   .topbar-right { flex-wrap: wrap; }
   .power { width: 100%; justify-content: space-between; }
-  .actions { width: 100%; }
-  .btn { flex: 1; }
+  .actions { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .btn { width: 100%; padding: 0 4px; font-size: 11.5px; }
+  .input, .select { font-size: 16px; }
 }
   </style>
 </head>
