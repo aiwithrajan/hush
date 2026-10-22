@@ -2,7 +2,8 @@
 
 > **Built for the Hacktoberfest Open-Source AI Challenge, Week 3 — "Slow and Steady"**  
 > *Targeting: Overall Winner ($250) · Best Use of Gemma ($200) · Best Use of Temporal ($100)*  
-> 🌐 **Live Web Demo**: [https://aiwithrajan.github.io/hush/](https://aiwithrajan.github.io/hush/)  
+> 🌐 **Live Web App (Vercel)**: [https://hush-ai-os.vercel.app](https://hush-ai-os.vercel.app)  
+> 🌐 **Mirror (GitHub Pages)**: [https://aiwithrajan.github.io/hush/](https://aiwithrajan.github.io/hush/)  
 > 📦 **GitHub Repository**: [https://github.com/aiwithrajan/hush](https://github.com/aiwithrajan/hush)  
 > 🎥 **Walkthrough Video**: [`hush_demo_1080p.mp4`](hush_demo_1080p.mp4)
 
