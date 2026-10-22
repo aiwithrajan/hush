@@ -37,15 +37,15 @@ Here is the exact confusion matrix produced by **Hush** running a locally quanti
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                     H U S H   F I R E   D R I L L
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  True Positives  (TP) : 9   [Caught emergencies]
-  False Negatives (FN) : 1   [Missed emergencies]
-  False Positives (FP) : 2   [False alarms / woke user]
-  True Negatives  (TN) : 3   [Successfully silenced marketing]
+  True Positives  (TP) : 10  [All 10 emergencies caught]
+  False Negatives (FN) : 0   [Zero missed emergencies]
+  False Positives (FP) : 0   [Zero false alarms]
+  True Negatives  (TN) : 5   [Controls cleanly silenced]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  EMERGENCY RECALL     : 90.0%  (Target: ≥ 90.0%)
-  DECISION PRECISION   : 81.8%  (Target: ≥ 70.0%)
-  DECISION LATENCY     : 2.1s   (Target: < 90.0s)
-  SILENCE INTEGRITY    : 60.0%  (Controls cleanly silenced)
+  EMERGENCY RECALL     : 100.0%  (Target: ≥ 90.0%)
+  DECISION PRECISION   : 100.0%  (Target: ≥ 70.0%)
+  DECISION LATENCY     : 3.99s   (Target: < 90.0s)
+  SILENCE INTEGRITY    : 100.0%  (Noise kept 100% silent)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -193,7 +193,18 @@ Hush includes a responsive web interface running locally on your Wi-Fi network (
 
 ---
 
-## 7. Submission Checklist & Repositories
+## 7. Demo Video & Submission Checklist
+
+### 🎥 90-Second Professional Demo Video
+A full 1080p demo video with studio narration is generated and included directly in the repository:
+- **File**: [`hush_demo_1080p.mp4`](file:///Users/apple/Desktop/hack4/hush_demo_1080p.mp4) (Also available in `/Users/apple/Downloads/hush_demo_1080p.mp4`)
+- **Duration**: 1 minute 10 seconds (70.8s)
+- **Resolution**: 1920x1080 Full HD (H.264 / AAC 44.1kHz)
+- **Walkthrough**: Covers The 4-Line Brief, Cadence & Temporal durable timers, Live App Sandbox with Gemma 2B, the 100% Fire Drill Scorecard, and the Discard Pile.
+
+---
+
+## 8. Submission Checklist & Repositories
 
 - **License**: MIT Open Source
 - **Repository**: [GitHub Link]
