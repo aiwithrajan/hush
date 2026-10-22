@@ -4,14 +4,29 @@ from typing import Dict, Any, Optional
 from hush.config import COCOA_EPOCH_OFFSET_SECONDS
 
 
-def map_source(app_id: str) -> str:
+def map_source(app_id: str, custom_rules: Optional[Dict[str, str]] = None) -> str:
     """Maps bundle identifier to normalized source category."""
+    if custom_rules and app_id in custom_rules:
+        return custom_rules[app_id]
+
     app_lower = (app_id or "").lower()
-    if "whatsapp" in app_lower:
+    if any(k in app_lower for k in ["whatsapp", "net.whatsapp"]):
         return "wa"
-    elif any(k in app_lower for k in ["mail", "outlook", "thunderbird"]):
+    elif any(k in app_lower for k in ["telegram", "org.telegram"]):
+        return "telegram"
+    elif any(k in app_lower for k in ["slack", "tinyspeck"]):
+        return "slack"
+    elif any(k in app_lower for k in ["discord"]):
+        return "discord"
+    elif any(k in app_lower for k in ["teams", "skype"]):
+        return "teams"
+    elif any(k in app_lower for k in ["signal", "whispersystems"]):
+        return "signal"
+    elif any(k in app_lower for k in ["calendar", "ical", "reminders"]):
+        return "calendar"
+    elif any(k in app_lower for k in ["mail", "outlook", "thunderbird", "gmail"]):
         return "mail"
-    elif any(k in app_lower for k in ["mobilesms", "messages", "sms"]):
+    elif any(k in app_lower for k in ["mobilesms", "messages", "sms", "imessage"]):
         return "sms"
     return "other"
 
