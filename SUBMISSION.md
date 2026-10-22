@@ -207,6 +207,6 @@ A full 1080p demo video with studio narration is generated and included directly
 ## 8. Submission Checklist & Repositories
 
 - **License**: MIT Open Source
-- **Repository**: [GitHub Link]
+- **Repository**: [https://github.com/aiwithrajan/hush](https://github.com/aiwithrajan/hush)
 - **Language**: Python 3.11+, Temporal Python SDK, Ollama, Gemma 2B
 - **Verification**: 11 unit and integration tests passing (`pytest tests/`)
