@@ -1,7 +1,8 @@
 # Hush
 
 > **A local attention router that reads every notification so you only have to read four.**  
-> 🌐 **Live Zero-Install Demo**: [https://aiwithrajan.github.io/hush/](https://aiwithrajan.github.io/hush/)  
+> 🌐 **Live Web App (Vercel)**: [https://hush-ai-os.vercel.app](https://hush-ai-os.vercel.app)  
+> 🌐 **Mirror (GitHub Pages)**: [https://aiwithrajan.github.io/hush/](https://aiwithrajan.github.io/hush/)  
 > 🎥 **Demo Video (1080p)**: [`hush_demo_1080p.mp4`](hush_demo_1080p.mp4)
 
 Built for the **Hacktoberfest Open-Source AI Challenge, Week 3 — "Slow and Steady"**.
