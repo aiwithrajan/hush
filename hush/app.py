@@ -15,6 +15,11 @@ from hush.db import (
     get_email_accounts,
     save_email_account,
     delete_email_account,
+    get_app_rules,
+    save_app_rule,
+    delete_app_rule,
+    get_detected_apps,
+    insert_notification,
 )
 from hush.collector import collect_macos_notifications
 from hush.email_collector import (
@@ -26,7 +31,7 @@ from hush.classifier import classify_notification
 from hush.router import generate_brief
 from hush.drill import run_fire_drill
 from hush.interrupt import handle_interrupt, deliver_summary_notification
-from hush.normaliser import to_classifier_projection
+from hush.normaliser import to_classifier_projection, map_source, compute_notification_id
 from hush.config import T_HIGH
 
 HTML_PAGE = """<!DOCTYPE html>
@@ -174,7 +179,7 @@ HTML_PAGE = """<!DOCTYPE html>
         }
         .tab-btn {
             flex: 1;
-            min-width: 90px;
+            min-width: 80px;
             background: transparent;
             border: none;
             color: var(--text-secondary);
@@ -355,11 +360,6 @@ HTML_PAGE = """<!DOCTYPE html>
             gap: 10px;
             line-height: 1.45;
         }
-        .alert-box.success {
-            background: #052613;
-            border-color: #176332;
-            color: #85e89d;
-        }
 
         /* Cadence Controls */
         .preset-grid {
@@ -417,7 +417,7 @@ HTML_PAGE = """<!DOCTYPE html>
         }
         .form-group {
             flex: 1;
-            min-width: 220px;
+            min-width: 200px;
         }
         .form-group label {
             display: block;
@@ -542,6 +542,8 @@ HTML_PAGE = """<!DOCTYPE html>
         .badge-fp { background: #452a05; color: #e3b341; }
         .badge-tn { background: #1c2736; color: #8b949e; }
         .badge-active { background: #033a16; color: #7ee787; border: 1px solid #7ee78744; }
+        .badge-priority { background: #3d1b54; color: #d2a8ff; border: 1px solid #d2a8ff55; }
+        .badge-muted { background: #331515; color: #ff7b72; border: 1px solid #ff7b7244; }
 
         /* System Status Bar */
         .status-bar {
@@ -645,6 +647,7 @@ HTML_PAGE = """<!DOCTYPE html>
         <nav class="tabs-nav">
             <button class="tab-btn active" onclick="switchTab('brief', this)">📋 Brief</button>
             <button class="tab-btn" onclick="switchTab('cadence', this)">⏱️ Cadence</button>
+            <button class="tab-btn" onclick="switchTab('apps', this)">📱 Apps</button>
             <button class="tab-btn" onclick="switchTab('email', this)">📧 Email Accounts</button>
             <button class="tab-btn" onclick="switchTab('drill', this)">🎯 Fire Drill</button>
             <button class="tab-btn" onclick="switchTab('discard', this)">🗑️ Discard Pile</button>
@@ -707,7 +710,112 @@ HTML_PAGE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- TAB 3: EMAIL ACCOUNTS -->
+        <!-- TAB 3: APPS & CHANNELS -->
+        <div id="section-apps" class="tab-section tab-hidden">
+            <div class="section-title">App Detection & Channel Routing</div>
+            <div class="panel">
+                <div class="panel-desc">
+                    <strong>Hush automatically captures notifications from EVERY application</strong> installed on your device (Telegram, Slack, Discord, Microsoft Teams, Signal, WhatsApp, Calendar, etc.) through the local OS notification layer without needing per-app login tokens.
+                </div>
+
+                <div class="chips-row">
+                    <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Quick App Presets:</span>
+                    <button class="chip" onclick="fillAppPreset('Telegram', 'org.telegram.desktop', 'telegram')">+ Telegram</button>
+                    <button class="chip" onclick="fillAppPreset('Slack', 'com.tinyspeck.slackmacgap', 'slack')">+ Slack</button>
+                    <button class="chip" onclick="fillAppPreset('Discord', 'com.hnc.Discord', 'discord')">+ Discord</button>
+                    <button class="chip" onclick="fillAppPreset('Microsoft Teams', 'com.microsoft.teams', 'teams')">+ Teams</button>
+                    <button class="chip" onclick="fillAppPreset('Signal', 'org.whispersystems.signal-desktop', 'signal')">+ Signal</button>
+                    <button class="chip" onclick="fillAppPreset('Calendar', 'com.apple.iCal', 'calendar')">+ Calendar</button>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>App Name</label>
+                        <input type="text" id="app-name-input" placeholder="e.g. Telegram">
+                    </div>
+                    <div class="form-group" style="flex: 1.5;">
+                        <label>Bundle ID or Keyword</label>
+                        <input type="text" id="app-id-input" placeholder="e.g. org.telegram.desktop or telegram">
+                    </div>
+                    <div class="form-group">
+                        <label>Source Channel</label>
+                        <select id="app-source-select">
+                            <option value="telegram">Telegram</option>
+                            <option value="slack">Slack</option>
+                            <option value="discord">Discord</option>
+                            <option value="teams">Teams</option>
+                            <option value="signal">Signal</option>
+                            <option value="calendar">Calendar</option>
+                            <option value="wa">WhatsApp</option>
+                            <option value="mail">Mail</option>
+                            <option value="sms">SMS</option>
+                            <option value="other">Other App</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority Rule</label>
+                        <select id="app-priority-select">
+                            <option value="priority">⭐ Priority (Important)</option>
+                            <option value="normal" selected>🔔 Normal (Standard)</option>
+                            <option value="muted">🔇 Muted (Silence Always)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+                    <button class="success" onclick="saveAppRule()">💾 Save App Rule</button>
+                    <button onclick="loadAppsData()">🔄 Refresh Detected Apps</button>
+                </div>
+            </div>
+
+            <!-- Test Any App -->
+            <div class="section-title">Test Notification From Any App</div>
+            <div class="panel">
+                <div class="panel-desc">
+                    Send a test notification from any app to test how Gemma 2B scores and routes it live.
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>App</label>
+                        <input type="text" id="test-app-id" value="org.telegram.desktop">
+                    </div>
+                    <div class="form-group">
+                        <label>Sender / Title</label>
+                        <input type="text" id="test-app-sender" placeholder="e.g. Team Lead / Telegram">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="width: 100%;">
+                        <label>Notification Message</label>
+                        <input type="text" id="test-app-body" placeholder="e.g. Urgent server memory spike on prod-node-1, check immediately.">
+                    </div>
+                </div>
+                <button class="primary" onclick="sendTestAppNotification()">⚡ Route & Test App Notification</button>
+            </div>
+
+            <!-- Detected Apps Table -->
+            <div class="section-title">Detected Apps on This Device</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Application</th>
+                            <th>Bundle ID</th>
+                            <th>Channel</th>
+                            <th>Priority</th>
+                            <th>Notifications Seen</th>
+                            <th>Last Seen</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detected-apps-tbody">
+                        <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading detected apps...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 4: EMAIL ACCOUNTS -->
         <div id="section-email" class="tab-section tab-hidden">
             <div class="section-title">Direct Mail Ingestion (Zero-Notification Setup)</div>
             <div class="panel">
@@ -767,7 +875,7 @@ HTML_PAGE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- TAB 4: FIRE DRILL -->
+        <!-- TAB 5: FIRE DRILL -->
         <div id="section-drill" class="tab-section tab-hidden">
             <div class="section-title">Notification Fire Drill · Ground Truth & Miss Log</div>
             <div class="metrics-grid">
@@ -809,7 +917,7 @@ HTML_PAGE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- TAB 5: DISCARD PILE -->
+        <!-- TAB 6: DISCARD PILE -->
         <div id="section-discard" class="tab-section tab-hidden">
             <div class="section-title">The Rejection Log (The Discard Pile)</div>
             <div class="table-wrap">
@@ -857,6 +965,7 @@ HTML_PAGE = """<!DOCTYPE html>
             const sections = {
                 'brief': document.getElementById('section-brief'),
                 'cadence': document.getElementById('section-cadence'),
+                'apps': document.getElementById('section-apps'),
                 'email': document.getElementById('section-email'),
                 'drill': document.getElementById('section-drill'),
                 'discard': document.getElementById('section-discard'),
@@ -870,6 +979,7 @@ HTML_PAGE = """<!DOCTYPE html>
                 }
             }
 
+            if (tabKey === 'apps') loadAppsData();
             if (tabKey === 'email') loadEmailAccounts();
             if (tabKey === 'cadence') loadSettings();
         }
@@ -1015,7 +1125,7 @@ HTML_PAGE = """<!DOCTYPE html>
                 }).join('');
 
                 showToast(`Drill complete: Recall ${(s.recall * 100).toFixed(0)}%`);
-                switchTab('drill', document.querySelectorAll('.tab-btn')[3]);
+                switchTab('drill', document.querySelectorAll('.tab-btn')[4]);
                 await loadBrief();
             } catch (e) {
                 showToast("Drill failed");
@@ -1068,7 +1178,6 @@ HTML_PAGE = """<!DOCTYPE html>
         }
 
         async function triggerSummaryNotification() {
-            // Request browser notification permission if available
             if ("Notification" in window && Notification.permission !== "granted") {
                 await Notification.requestPermission();
             }
@@ -1086,6 +1195,118 @@ HTML_PAGE = """<!DOCTYPE html>
                 showToast(`Summary notification sent! (0 raw alerts leaked)`);
             } catch (e) {
                 showToast("Failed to send summary");
+            }
+        }
+
+        /* Apps & Channels Management */
+        function fillAppPreset(name, appId, source) {
+            document.getElementById('app-name-input').value = name;
+            document.getElementById('app-id-input').value = appId;
+            document.getElementById('app-source-select').value = source;
+            document.getElementById('test-app-id').value = appId;
+            document.getElementById('test-app-sender').value = `${name} Notice`;
+            showToast(`Preset: ${name}`);
+        }
+
+        async function loadAppsData() {
+            try {
+                const res = await fetch('/api/apps');
+                const data = await res.json();
+                const tbody = document.getElementById('detected-apps-tbody');
+
+                if (!data.detected || data.detected.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">No app notifications detected yet. Tap "Sync" or use the test tool above.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.detected.map(app => {
+                    let badgeClass = 'badge-active';
+                    if (app.priority === 'priority') badgeClass = 'badge-priority';
+                    if (app.priority === 'muted') badgeClass = 'badge-muted';
+
+                    const lastSeen = app.last_seen ? app.last_seen.substring(11, 19) : '--:--';
+                    return `
+                        <tr>
+                            <td><strong>${escapeHtml(app.display_name)}</strong></td>
+                            <td style="color: var(--text-secondary); font-family: monospace; font-size: 12px;">${escapeHtml(app.app_id)}</td>
+                            <td><span class="source-pill">[${escapeHtml(app.source.toUpperCase())}]</span></td>
+                            <td><span class="badge ${badgeClass}">${escapeHtml(app.priority.toUpperCase())}</span></td>
+                            <td style="font-weight: 700; color: #fff;">${app.notif_count}</td>
+                            <td style="font-family: monospace; font-size: 12px; color: var(--text-muted);">${lastSeen}</td>
+                            <td style="text-align: right;">
+                                <button onclick="quickSetAppPriority('${escapeHtml(app.app_id)}', '${escapeHtml(app.display_name)}', '${escapeHtml(app.source)}', 'priority')" style="padding: 4px 8px; font-size: 11px;">⭐ High</button>
+                                <button onclick="quickSetAppPriority('${escapeHtml(app.app_id)}', '${escapeHtml(app.display_name)}', '${escapeHtml(app.source)}', 'muted')" style="padding: 4px 8px; font-size: 11px; color: var(--accent-red); border-color: #490202;">🔇 Mute</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("Failed to load apps", e);
+            }
+        }
+
+        async function saveAppRule() {
+            const name = document.getElementById('app-name-input').value.trim();
+            const appId = document.getElementById('app-id-input').value.trim();
+            const source = document.getElementById('app-source-select').value;
+            const priority = document.getElementById('app-priority-select').value;
+
+            if (!appId) {
+                showToast("Please enter an App ID or keyword");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/apps/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ app_id: appId, name: name || appId, source, priority })
+                });
+                const r = await res.json();
+                if (r.success) {
+                    showToast(`Rule saved for ${name || appId}`);
+                    await loadAppsData();
+                } else {
+                    showToast("Failed to save rule");
+                }
+            } catch (e) {
+                showToast("Error saving app rule");
+            }
+        }
+
+        async function quickSetAppPriority(appId, name, source, priority) {
+            try {
+                await fetch('/api/apps/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ app_id: appId, name, source, priority })
+                });
+                showToast(`Set ${name} to ${priority}`);
+                await loadAppsData();
+            } catch (e) {
+                showToast("Failed to update priority");
+            }
+        }
+
+        async function sendTestAppNotification() {
+            const appId = document.getElementById('test-app-id').value.trim() || 'org.telegram.desktop';
+            const sender = document.getElementById('test-app-sender').value.trim() || 'Telegram Lead';
+            const body = document.getElementById('test-app-body').value.trim() || 'Urgent: server cluster memory spike, review immediately.';
+
+            showToast(`Routing notification for ${appId}...`);
+            try {
+                const res = await fetch('/api/apps/test-notify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ app_id: appId, title: sender, body: body })
+                });
+                const r = await res.json();
+                const j = r.judgment;
+                showToast(`Routed! Score: ${j.score.toFixed(2)} (${j.category})`);
+                await loadBrief();
+                switchTab('brief', document.querySelectorAll('.tab-btn')[0]);
+            } catch (e) {
+                showToast("Failed to test notification");
             }
         }
 
@@ -1266,6 +1487,11 @@ class HushHTTPHandler(BaseHTTPRequestHandler):
             with get_db() as conn:
                 mins_str = get_setting(conn, "cadence_minutes", "180")
                 self._send_json({"cadence_minutes": int(mins_str)})
+        elif path == "/api/apps":
+            with get_db() as conn:
+                detected = get_detected_apps(conn)
+                rules = get_app_rules(conn)
+                self._send_json({"detected": detected, "rules": rules})
         elif path == "/api/emails":
             with get_db() as conn:
                 accounts = get_email_accounts(conn)
@@ -1314,6 +1540,57 @@ class HushHTTPHandler(BaseHTTPRequestHandler):
             with get_db() as conn:
                 set_setting(conn, "cadence_minutes", str(new_mins))
                 self._send_json({"success": True, "cadence_minutes": int(new_mins)})
+
+        elif path == "/api/apps/save":
+            app_id = body.get("app_id", "").strip()
+            name = body.get("name", "").strip() or app_id
+            source = body.get("source", "other").strip()
+            priority = body.get("priority", "normal").strip()
+
+            if not app_id:
+                self._send_json({"success": False, "message": "App ID is required"}, 400)
+                return
+
+            with get_db() as conn:
+                save_app_rule(conn, app_id, name, source, priority)
+                self._send_json({"success": True})
+
+        elif path == "/api/apps/delete":
+            app_id = body.get("app_id", "").strip()
+            with get_db() as conn:
+                delete_app_rule(conn, app_id)
+                self._send_json({"success": True})
+
+        elif path == "/api/apps/test-notify":
+            app_id = body.get("app_id", "org.telegram.desktop").strip()
+            title = body.get("title", "Telegram Notice").strip()
+            body_text = body.get("body", "Test message").strip()
+            source = map_source(app_id)
+            now_iso = datetime.now().astimezone().isoformat()
+            notif_id = compute_notification_id(app_id, title, body_text, now_iso)
+            record = {
+                "id": notif_id,
+                "source": source,
+                "app_id": app_id,
+                "title": title,
+                "body": body_text,
+                "received_at": now_iso,
+                "is_synthetic": 0,
+                "drill_id": None,
+            }
+            with get_db() as conn:
+                insert_notification(conn, record)
+                proj = to_classifier_projection(record)
+                judgment = classify_notification(proj)
+                insert_judgment(conn, judgment)
+                if judgment["score"] >= T_HIGH:
+                    handle_interrupt(conn, record, judgment)
+                conn.commit()
+                self._send_json({
+                    "success": True,
+                    "record": record,
+                    "judgment": judgment,
+                })
 
         elif path == "/api/emails/save":
             email_addr = body.get("email", "").strip()

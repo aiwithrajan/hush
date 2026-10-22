@@ -69,6 +69,15 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT
 );
 
+CREATE TABLE IF NOT EXISTS app_rules (
+    app_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'other',
+    priority TEXT NOT NULL DEFAULT 'normal', -- priority | normal | muted
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_notifications_received_at ON notifications(received_at);
 CREATE INDEX IF NOT EXISTS idx_judgments_score ON judgments(score);
 """
@@ -161,6 +170,65 @@ def update_email_account_status(conn: sqlite3.Connection, email_addr: str, last_
         (now_iso, last_error, email_addr.strip()),
     )
     conn.commit()
+
+
+def get_app_rules(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+    """Returns custom app priority and channel routing rules."""
+    cur = conn.execute("SELECT app_id, name, source, priority, is_active FROM app_rules ORDER BY name ASC")
+    return [dict(r) for r in cur.fetchall()]
+
+
+def save_app_rule(
+    conn: sqlite3.Connection,
+    app_id: str,
+    name: str,
+    source: str = "other",
+    priority: str = "normal",
+    is_active: int = 1,
+):
+    """Registers or updates app priority configuration."""
+    now_iso = datetime.now().astimezone().isoformat()
+    conn.execute(
+        """
+        INSERT INTO app_rules (app_id, name, source, priority, is_active, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(app_id) DO UPDATE SET
+            name = excluded.name,
+            source = excluded.source,
+            priority = excluded.priority,
+            is_active = excluded.is_active
+        """,
+        (app_id.strip(), name.strip(), source.strip().lower(), priority.strip().lower(), is_active, now_iso),
+    )
+    conn.commit()
+
+
+def delete_app_rule(conn: sqlite3.Connection, app_id: str):
+    """Deletes an app routing rule."""
+    conn.execute("DELETE FROM app_rules WHERE app_id = ?", (app_id.strip(),))
+    conn.commit()
+
+
+def get_detected_apps(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+    """Discovers all apps that have posted notifications to this device with counts."""
+    cur = conn.execute(
+        """
+        SELECT 
+            n.app_id,
+            COUNT(*) as notif_count,
+            MAX(n.received_at) as last_seen,
+            COALESCE(r.name, n.app_id) as display_name,
+            COALESCE(r.source, n.source) as source,
+            COALESCE(r.priority, 'normal') as priority
+        FROM notifications n
+        LEFT JOIN app_rules r ON n.app_id = r.app_id
+        WHERE n.app_id IS NOT NULL AND n.app_id != ''
+        GROUP BY n.app_id
+        ORDER BY notif_count DESC
+        """
+    )
+    return [dict(r) for r in cur.fetchall()]
+
 
 
 
