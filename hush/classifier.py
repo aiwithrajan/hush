@@ -19,6 +19,7 @@ CATEGORY RULES:
 6. Routine dev tools (Antigravity status, git, coding tasks, devpost, hackathons): category: "work", urgency: 0.10 to 0.20.
 7. Commercial loans, food sales, discount coupons, marketing newsletters: category: "promo", urgency: 0.05.
 8. Academic classroom notices (lab, exams, schedule): category: "work", urgency: 0.25 to 0.35.
+9. Social media activity (Facebook posts, group updates, Snapchat story/streak, likes, shares, friend requests): category: "promo", urgency: 0.05.
 """
 
 
@@ -32,13 +33,13 @@ def rule_based_fallback_classifier(notif: Dict[str, Any]) -> Dict[str, Any]:
     """
     text = f"{notif.get('title', '')} {notif.get('body', '')}".lower()
 
-    # 1. Promotional / Marketing
-    if any(k in text for k in ["personal loan of", "pre-approved", "discount", "offer", "sale", "flat 50%", "subscribe", "newsletter", "save up to", "cashback"]):
+    # 1. Promotional / Marketing / Social Feed
+    if any(k in text for k in ["personal loan of", "pre-approved", "discount", "offer", "sale", "flat 50%", "subscribe", "newsletter", "save up to", "cashback", "posted in a group", "shared a post", "sent a snap", "view story", "friend request"]):
         return {
             "urgency": 0.05,
             "category": "promo",
             "deadline_at": None,
-            "reason": "Promotional or commercial marketing message",
+            "reason": "Promotional or non-urgent social media feed activity",
         }
 
     # 2. Health / Life Safety
