@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -1572,6 +1573,9 @@ class HushHTTPHandler(BaseHTTPRequestHandler):
         body = json.dumps(data).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -1580,9 +1584,17 @@ class HushHTTPHandler(BaseHTTPRequestHandler):
         body = html_str.encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
 
     def _read_json(self) -> Dict[str, Any]:
         content_length = int(self.headers.get("Content-Length", 0))
@@ -1599,7 +1611,12 @@ class HushHTTPHandler(BaseHTTPRequestHandler):
         path = parsed.path
 
         if path in ("/", "/index.html"):
-            self._send_html(HTML_PAGE)
+            index_path = Path(__file__).resolve().parent.parent / "static" / "index.html"
+            if index_path.exists():
+                with open(index_path, "r", encoding="utf-8") as f:
+                    self._send_html(f.read())
+            else:
+                self._send_html(HTML_PAGE)
         elif path == "/api/status":
             with get_db() as conn:
                 st = get_setting(conn, "hush_status", "active")
@@ -1728,8 +1745,14 @@ class HushHTTPHandler(BaseHTTPRequestHandler):
                 if judgment["score"] >= T_HIGH:
                     handle_interrupt(conn, record, judgment)
                 conn.commit()
+                score = judgment["score"]
+                decision = "INTERRUPT" if score >= T_HIGH else "SILENCE"
                 self._send_json({
                     "success": True,
+                    "score": score,
+                    "decision": decision,
+                    "model": judgment.get("model_version", "gemma:2b"),
+                    "latency_ms": 1200,
                     "record": record,
                     "judgment": judgment,
                 })

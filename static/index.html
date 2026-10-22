@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#090d16" />
+  <title>HUSH — Local Attention Router</title>
+  <style>
+/* =====================================================================
+   HUSH — Local Attention Router
+   Cyber-Minimalist Dark Mode Design System  (single-file build)
+   ===================================================================== */
+
+:root {
+  /* Surfaces */
+  --bg:        #090d16;   /* Deep Obsidian */
+  --surface:   #121824;
+  --card:      #162030;
+  --border:    #223247;
+  --border-hi: #2c415c;
+
+  /* Accents */
+  --blue:   #58a6ff;   /* Primary / Reply */
+  --crimson:#ff7b72;   /* Alert / Emergency / FN */
+  --emerald:#3fb950;   /* Success / Active / Money / TP */
+  --amber:  #e3b341;   /* Warning / Spillover / FP */
+  --purple: #d2a8ff;   /* Person / Family */
+
+  --txt:    #e6edf3;
+  --txt-2:  #8b98a9;
+  --txt-3:  #5b6878;
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 8px 30px rgba(0,0,0,.45);
+  --ease: cubic-bezier(.2,.7,.2,1);
+
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", sans-serif;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Menlo", "Consolas", monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--txt);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(900px 500px at 12% -8%, rgba(88,166,255,.10), transparent 60%),
+    radial-gradient(700px 480px at 100% 0%, rgba(210,168,255,.07), transparent 55%);
+  background-attachment: fixed;
+}
+
+::selection { background: rgba(88,166,255,.30); }
+
+/* Scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+
+/* =====================================================================
+   Layout shell
+   ===================================================================== */
+.app-shell {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  min-height: 100vh;
+}
+
+/* ---------------- Sidebar ---------------- */
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 22px 16px;
+  background: linear-gradient(180deg, rgba(18,24,36,.9), rgba(9,13,22,.9));
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.brand { display: flex; align-items: center; gap: 12px; padding: 4px 6px; }
+.brand-mark {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 20px; letter-spacing: .5px;
+  color: #061018;
+  background: linear-gradient(135deg, var(--blue), #8fd0ff);
+  box-shadow: 0 6px 18px rgba(88,166,255,.35);
+}
+.brand-title { font-weight: 800; font-size: 17px; letter-spacing: 2px; }
+.brand-sub { font-size: 11px; color: var(--txt-2); letter-spacing: .3px; }
+
+.nav { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--txt-2);
+  font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background .18s var(--ease), color .18s var(--ease), border-color .18s var(--ease);
+  font-family: inherit;
+}
+.nav-item .nav-ico { font-size: 16px; filter: grayscale(.2); }
+.nav-item:hover { color: var(--txt); background: rgba(34,50,71,.45); border-color: var(--border); }
+.nav-item.active {
+  color: var(--txt);
+  background: linear-gradient(90deg, rgba(88,166,255,.16), rgba(88,166,255,.04));
+  border-color: var(--border-hi);
+  box-shadow: inset 2px 0 0 var(--blue);
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--txt-2);
+  font-family: var(--mono);
+  padding: 8px 6px 0;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--txt-3); box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+.dot.ok { background: var(--emerald); box-shadow: 0 0 10px rgba(63,185,80,.7); }
+.dot.bad { background: var(--crimson); box-shadow: 0 0 10px rgba(255,123,114,.6); }
+
+.demo-pill {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--amber);
+  border: 1px solid rgba(227,179,65,.5);
+  background: rgba(227,179,65,.10);
+  padding: 2px 7px; border-radius: 6px;
+}
+
+/* ---------------- Main ---------------- */
+.main { display: flex; flex-direction: column; min-width: 0; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  padding: 16px 26px;
+  background: rgba(9,13,22,.72);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-left { display: flex; align-items: baseline; gap: 12px; }
+.topbar-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 3px; }
+.topbar-sub { font-size: 12px; color: var(--txt-2); }
+
+.topbar-right { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+
+/* Power switch */
+.power { display: flex; align-items: center; gap: 10px; }
+.power-label { font-family: var(--mono); font-size: 12px; color: var(--txt-2); }
+.power-label b { color: var(--emerald); }
+.power-label b.off { color: var(--amber); }
+
+.switch { position: relative; display: inline-block; width: 50px; height: 28px; cursor: pointer; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-track {
+  position: absolute; inset: 0; border-radius: 999px;
+  background: var(--border); transition: background .22s var(--ease);
+  border: 1px solid var(--border-hi);
+}
+.switch-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; transition: transform .22s var(--ease), background .22s var(--ease);
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+}
+.switch input:checked + .switch-track { background: linear-gradient(90deg, var(--emerald), #5fd66f); border-color: transparent; }
+.switch input:checked + .switch-track .switch-thumb { transform: translateX(22px); }
+.switch input:not(:checked) + .switch-track { background: var(--amber); }
+
+/* Buttons */
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--txt);
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: background .16s var(--ease), border-color .16s var(--ease), transform .08s var(--ease);
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--border-hi); background: #1b2636; }
+.btn:active { transform: scale(.97); }
+.btn-accent { background: linear-gradient(135deg, var(--blue), #7bbcff); color: #06121f; border-color: transparent; font-weight: 700; }
+.btn-accent:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-block { width: 100%; }
+
+/* Pause banner */
+.pause-banner {
+  margin: 14px 26px 0;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(227,179,65,.10);
+  border: 1px solid rgba(227,179,65,.45);
+  color: var(--amber);
+  font-size: 13px; font-weight: 600;
+  animation: fadeIn .3s var(--ease);
+}
+
+/* View */
+.view { padding: 22px 26px 60px; max-width: 1080px; width: 100%; }
+
+/* =====================================================================
+   Generic components
+   ===================================================================== */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+.card + .card { margin-top: 16px; }
+
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.section-title { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+.section-sub { font-size: 12px; color: var(--txt-2); }
+
+.muted { color: var(--txt-2); }
+.mono { font-family: var(--mono); }
+.tiny { font-size: 11px; }
+
+/* Badges / pills */
+.badge {
+  display: inline-flex; align-items: center;
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .6px;
+  padding: 3px 8px; border-radius: 6px; text-transform: uppercase;
+}
+.tag-deadline { color: var(--crimson); background: rgba(255,123,114,.12); border: 1px solid rgba(255,123,114,.35); }
+.tag-money   { color: var(--emerald); background: rgba(63,185,80,.12);  border: 1px solid rgba(63,185,80,.35); }
+.tag-person  { color: var(--purple);  background: rgba(210,168,255,.12);border: 1px solid rgba(210,168,255,.35); }
+.tag-reply   { color: var(--blue);    background: rgba(88,166,255,.12);  border: 1px solid rgba(88,166,255,.35); }
+.tag-today   { color: var(--txt-2);   background: rgba(139,152,169,.10);border: 1px solid rgba(139,152,169,.30); }
+
+.pill {
+  display: inline-flex; align-items: center;
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .5px;
+  padding: 3px 7px; border-radius: 999px;
+  color: var(--blue); background: rgba(88,166,255,.10); border: 1px solid rgba(88,166,255,.30);
+}
+
+.verdict { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+.v-TP { color: var(--emerald); background: rgba(63,185,80,.14); }
+.v-FN { color: var(--crimson); background: rgba(255,123,114,.14); }
+.v-FP { color: var(--amber);   background: rgba(227,179,65,.14); }
+.v-TN { color: var(--blue);    background: rgba(88,166,255,.12); }
+
+/* Chips */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  min-height: 38px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--txt);
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: border-color .15s var(--ease), background .15s var(--ease), transform .08s var(--ease);
+}
+.chip:hover { border-color: var(--border-hi); background: #1b2636; }
+.chip:active { transform: scale(.96); }
+.chip.primary { border-color: rgba(88,166,255,.4); color: var(--blue); }
+
+/* Forms */
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.field label { font-size: 12px; color: var(--txt-2); font-weight: 600; }
+.input, .select {
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--txt);
+  font-family: inherit; font-size: 13px;
+  outline: none;
+  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+  width: 100%;
+}
+.input:focus, .select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(88,166,255,.15); }
+.input::placeholder { color: var(--txt-3); }
+textarea.input { padding: 10px 12px; min-height: 78px; resize: vertical; font-family: inherit; }
+
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 0 14px; }
+
+/* Tables */
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th {
+  text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .4px;
+  text-transform: uppercase; color: var(--txt-2);
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+}
+.table td { padding: 11px 12px; border-bottom: 1px solid rgba(34,50,71,.5); vertical-align: top; }
+.table tr:hover td { background: rgba(34,50,71,.30); }
+.table .num { font-family: var(--mono); }
+.table-scroll { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+
+/* Priority segmented control */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.seg button {
+  min-height: 38px; padding: 0 12px; border: 0;
+  background: transparent; color: var(--txt-2);
+  font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: background .15s var(--ease), color .15s var(--ease);
+}
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.sel { color: #06121f; }
+.seg button.sel.prio { background: var(--purple); }
+.seg button.sel.norm { background: var(--blue); }
+.seg button.sel.mute { background: var(--crimson); }
+
+/* Metric cards */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 14px; }
+.metric {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; position: relative; overflow: hidden;
+}
+.metric::after {
+  content:""; position:absolute; right:-20px; top:-20px; width:80px; height:80px; border-radius:50%;
+  background: radial-gradient(circle, rgba(88,166,255,.18), transparent 70%);
+}
+.metric .m-label { font-size: 11px; color: var(--txt-2); font-weight: 700; letter-spacing:.4px; text-transform: uppercase; }
+.metric .m-value { font-family: var(--mono); font-size: 30px; font-weight: 700; margin-top: 6px; }
+.metric .m-note { font-size: 11px; color: var(--txt-3); margin-top: 4px; }
+.metric.good .m-value { color: var(--emerald); }
+.metric.warn .m-value { color: var(--amber); }
+
+/* Brief lines */
+.brief-line {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 12px; align-items: start;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  transition: border-color .16s var(--ease), transform .16s var(--ease);
+  animation: rise .35s var(--ease) both;
+}
+.brief-line + .brief-line { margin-top: 12px; }
+.brief-line:hover { border-color: var(--border-hi); transform: translateY(-1px); }
+.brief-line .bl-tags { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.brief-line .bl-source { align-self: center; }
+.brief-line .bl-title { font-weight: 700; font-size: 14px; color: #fff; }
+.brief-line .bl-body { color: var(--txt-2); font-size: 13px; margin-top: 3px; line-height: 1.45; }
+.brief-line .bl-meta { font-family: var(--mono); font-size: 11px; color: var(--txt-3); margin-top: 6px; }
+.borrowed-note { font-style: italic; color: var(--amber); font-size: 12px; margin-top: 6px; }
+
+.brief-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin-top: 14px; padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, rgba(63,185,80,.10), rgba(63,185,80,.02));
+  border: 1px solid rgba(63,185,80,.30);
+}
+.brief-footer .cut { font-family: var(--mono); font-weight: 700; color: var(--emerald); }
+.brief-footer .next { font-family: var(--mono); font-size: 12px; color: var(--txt-2); }
+
+.window-badge {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  color: var(--blue); background: rgba(88,166,255,.10);
+  border: 1px solid rgba(88,166,255,.30);
+  padding: 4px 10px; border-radius: 999px;
+}
+
+/* Info / integrity banner */
+.info-banner {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 13px 15px; border-radius: var(--radius-sm);
+  background: rgba(88,166,255,.08); border: 1px solid rgba(88,166,255,.30);
+  color: var(--txt); font-size: 13px; margin-bottom: 16px;
+}
+.info-banner .ib-ico { font-size: 16px; }
+.info-banner b { color: var(--blue); }
+
+/* Interval selector */
+.intervals { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 10px; }
+.interval-btn {
+  min-height: 48px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--card);
+  color: var(--txt); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: border-color .15s var(--ease), background .15s var(--ease), transform .08s var(--ease);
+}
+.interval-btn:hover { border-color: var(--border-hi); }
+.interval-btn.active { border-color: var(--blue); background: rgba(88,166,255,.12); color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
+.interval-btn:active { transform: scale(.98); }
+
+/* Loading skeleton */
+.skeleton {
+  border-radius: var(--radius-sm); height: 14px; margin: 10px 0;
+  background: linear-gradient(90deg, #162030 25%, #1d293b 37%, #162030 63%);
+  background-size: 400% 100%; animation: shimmer 1.3s infinite;
+}
+.sk-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+
+/* Empty / error states */
+.empty { text-align: center; padding: 40px 20px; color: var(--txt-2); }
+.empty .e-ico { font-size: 34px; opacity: .6; }
+.empty .e-msg { margin-top: 8px; font-size: 13px; }
+.error-box { padding: 16px; border-radius: var(--radius-sm); background: rgba(255,123,114,.08); border: 1px solid rgba(255,123,114,.35); color: var(--crimson); font-size: 13px; }
+
+/* Toast */
+.toast-wrap {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 10px; z-index: 1000; width: min(420px, calc(100vw - 32px));
+}
+.toast {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--txt); font-size: 13px; font-weight: 500;
+  box-shadow: var(--shadow);
+  animation: toastIn .25s var(--ease);
+}
+.toast.out { animation: toastOut .25s var(--ease) forwards; }
+.toast .t-ico { font-size: 15px; }
+.toast.ok    { border-color: rgba(63,185,80,.5); }
+.toast.ok    .t-ico { color: var(--emerald); }
+.toast.warn  { border-color: rgba(227,179,65,.5); }
+.toast.warn  .t-ico { color: var(--amber); }
+.toast.err   { border-color: rgba(255,123,114,.5); }
+.toast.err   .t-ico { color: var(--crimson); }
+.toast.info  .t-ico { color: var(--blue); }
+
+/* Animations */
+@keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(12px); } }
+
+/* =====================================================================
+   Responsive — mobile first adaptations
+   ===================================================================== */
+@media (max-width: 900px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar {
+    position: sticky; top: 0; z-index: 30;
+    height: auto; flex-direction: column; gap: 12px;
+    padding: 12px 14px;
+    border-right: 0; border-bottom: 1px solid var(--border);
+  }
+  .brand { padding: 0; }
+  .nav {
+    flex-direction: row; gap: 6px; overflow-x: auto; padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+  }
+  .nav-item { flex: 0 0 auto; min-height: 40px; padding: 8px 12px; }
+  .nav-item .nav-label { white-space: nowrap; }
+  .nav-item.active { box-shadow: inset 0 -2px 0 var(--blue); }
+  .sidebar-foot { display: none; }
+
+  .topbar { padding: 12px 14px; }
+  .topbar-title { font-size: 17px; }
+  .topbar-sub { display: none; }
+  .topbar-right { gap: 10px; width: 100%; justify-content: space-between; }
+  .actions { flex: 1; justify-content: flex-end; }
+  .btn { padding: 0 11px; font-size: 12px; min-height: 38px; }
+  .pause-banner { margin: 12px 14px 0; }
+  .view { padding: 16px 14px 50px; }
+
+  .brief-line { grid-template-columns: 1fr; }
+  .brief-line .bl-source { order: -1; }
+  .brief-line .bl-tags { flex-direction: row; flex-wrap: wrap; }
+}
+
+@media (max-width: 430px) {
+  .topbar-right { flex-wrap: wrap; }
+  .power { width: 100%; justify-content: space-between; }
+  .actions { width: 100%; }
+  .btn { flex: 1; }
+}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- ============ SIDEBAR / TOP NAV ============ -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">H</div>
+        <div class="brand-text">
+          <div class="brand-title">HUSH</div>
+          <div class="brand-sub">Local Attention Router</div>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="nav-item active" data-tab="brief">
+          <span class="nav-ico">📋</span><span class="nav-label">The Brief</span>
+        </button>
+        <button class="nav-item" data-tab="cadence">
+          <span class="nav-ico">⏱️</span><span class="nav-label">Cadence</span>
+        </button>
+        <button class="nav-item" data-tab="apps">
+          <span class="nav-ico">📱</span><span class="nav-label">Apps &amp; Channels</span>
+        </button>
+        <button class="nav-item" data-tab="emails">
+          <span class="nav-ico">📧</span><span class="nav-label">Email Accounts</span>
+        </button>
+        <button class="nav-item" data-tab="drill">
+          <span class="nav-ico">🎯</span><span class="nav-label">Fire Drill</span>
+        </button>
+        <button class="nav-item" data-tab="discard">
+          <span class="nav-ico">🗑️</span><span class="nav-label">Discard Pile</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <span class="dot" id="connDot"></span>
+        <span id="connText">connecting…</span>
+        <span class="demo-pill" id="demoPill" hidden>DEMO</span>
+      </div>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="topbar-title">HUSH</h1>
+          <span class="topbar-sub">Local Attention Router</span>
+        </div>
+
+        <div class="topbar-right">
+          <div class="power">
+            <span class="power-label">STATUS: <b id="statusText">ON</b></span>
+            <label class="switch" title="Master power">
+              <input type="checkbox" id="powerSwitch" checked />
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+          <div class="actions">
+            <button class="btn" id="btnSync">🔄 Sync</button>
+            <button class="btn" id="btnClassify">⚡ Classify</button>
+            <button class="btn btn-accent" id="btnDrill">🎯 Fire Drill</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="pause-banner" id="pauseBanner" hidden>
+        ⏸️ Hush is <b>PAUSED</b> — Standard notifications flowing without quiet filtering.
+      </div>
+
+      <section class="view" id="view" aria-live="polite">
+        <!-- Tab content rendered here -->
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-wrap" id="toastWrap" aria-live="assertive"></div>
+
+  <!-- ===================== APP LOGIC (inline) ===================== -->
+  <script>
+/* =====================================================================
+   HUSH — data.js  (utilities + demo/mock data factories)
+   ===================================================================== */
+(function () {
+  "use strict";
+  const HUSH = (window.HUSH = window.HUSH || {});
+
+  const util = {
+    now: () => Date.now(),
+    ago(ms) { return Date.now() - ms; },
+    clock(ts) {
+      const d = new Date(ts);
+      return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+    },
+    clockSec(ts) {
+      const d = new Date(ts);
+      return [d.getHours(), d.getMinutes(), d.getSeconds()]
+        .map((n) => String(n).padStart(2, "0")).join(":");
+    },
+    rel(ts) {
+      const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
+      if (s < 60) return s + "s ago";
+      const m = Math.round(s / 60);
+      if (m < 60) return m + "m ago";
+      const h = Math.round(m / 60);
+      if (h < 24) return h + "h ago";
+      return Math.round(h / 24) + "d ago";
+    },
+    score(n) { return Number(n).toFixed(2); },
+    escape(str) {
+      return String(str == null ? "" : str)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    },
+    sourceLabel(src) {
+      const map = {
+        mail: "MAIL", wa: "WA", sms: "SMS", telegram: "TELEGRAM",
+        slack: "SLACK", facebook: "FACEBOOK", snapchat: "SNAPCHAT", other: "OTHER",
+      };
+      return map[src] || String(src || "OTHER").toUpperCase();
+    },
+    tagClass(tag) {
+      const t = String(tag || "").toLowerCase();
+      if (["deadline"].includes(t)) return "tag-deadline";
+      if (["money"].includes(t)) return "tag-money";
+      if (["person"].includes(t)) return "tag-person";
+      if (["reply"].includes(t)) return "tag-reply";
+      return "tag-today";
+    },
+    tagLabel(tag) { return String(tag || "").toUpperCase(); },
+    verdictClass(v) { return "v-" + String(v || "TN").toUpperCase(); },
+    priorityClass(p) { return { priority: "prio", normal: "norm", muted: "mute" }[p] || "norm"; },
+    priorityLabel(p) {
+      return { priority: "⭐ Priority", normal: "🔔 Normal", muted: "🔇 Muted" }[p] || "🔔 Normal";
+    },
+  };
+  HUSH.util = util;
+
+  const mock = {
+    status() { return { status: "active", is_active: true }; },
+    settings() { return { cadence_minutes: 180 }; },
+    brief() {
+      const n = util.now();
+      const lines = [
+        { id: "L1", source: "mail", app_id: "com.google.gmail",
+          title: "Mom", body: "Can you call when you're free? Dad's scan results are back and we should talk.",
+          received_at: util.ago(42 * 60000), urgency: 0.82, category: "person",
+          score: 2.61, reason: "Family member requesting a call — high relational weight", reason_tag: "person", slot_source: "mail" },
+        { id: "L2", source: "wa", app_id: "com.whatsapp",
+          title: "Priya (Team)", body: "Q3 board deck is due tomorrow 9AM — final numbers from you needed tonight.",
+          received_at: util.ago(28 * 60000), urgency: 0.7, category: "deadline",
+          score: 2.18, reason: "Explicit deadline within 24h, requires your input", reason_tag: "deadline", slot_source: "wa" },
+        { id: "L3", source: "sms", app_id: "com.apple.mobilesms",
+          title: "HDFC Bank", body: "Alert: ₹48,200 debited to AMAZON. If not you, call 1800-xxx immediately.",
+          received_at: util.ago(15 * 60000), urgency: 0.66, category: "money",
+          score: 1.94, reason: "Possible fraudulent financial transaction — money category", reason_tag: "money", slot_source: "sms" },
+        { id: "L4", source: "mail", app_id: "com.google.gmail",
+          title: "Rahul", body: "Emergency on highway — car broke down near exit 14, can you send help?",
+          received_at: util.ago(6 * 60000), urgency: 0.61, category: "person",
+          score: 1.72, reason: "Safety/emergency language borrowed an unused slot", reason_tag: "person",
+          slot_source: "spillover", borrowed: true },
+      ];
+      const rejected = [
+        { timestamp: util.ago(120 * 60000), app: "com.instagram", sender: "Instagram", body: "You have 3 new followers!", score: 0.08, reason: "Promotional / low signal" },
+        { timestamp: util.ago(96 * 60000), app: "com.whatsapp", sender: "Group: College Memes", body: "lol that's wild 😂😂", score: 0.04, reason: "Group chatter, no action" },
+        { timestamp: util.ago(80 * 60000), app: "com.google.android.gm", sender: "Nykaa Offers", body: "Flat 40% off on skincare today only!", score: 0.06, reason: "Promotional / marketing" },
+        { timestamp: util.ago(64 * 60000), app: "com.snapchat", sender: "Snapchat", body: "🌟 Your streak with Aman is about to end!", score: 0.03, reason: "Gamification nudge" },
+        { timestamp: util.ago(51 * 60000), app: "com.linkedin", sender: "LinkedIn", body: "You appeared in 12 searches this week", score: 0.05, reason: "Vanity metric, no action" },
+        { timestamp: util.ago(33 * 60000), app: "com.whatsapp", sender: "Swiggy", body: "Your order #4471 has been delivered.", score: 0.11, reason: "Transactional, already resolved" },
+        { timestamp: util.ago(19 * 60000), app: "com.facebook", sender: "Facebook", body: "Ravi commented on your photo.", score: 0.07, reason: "Social noise" },
+      ];
+      return {
+        brief_id: "brf_" + Math.random().toString(36).slice(2, 9),
+        window_start: util.ago(180 * 60000), window_end: n, cadence_minutes: 180,
+        next_brief_time: n + 180 * 60000, lines,
+        borrowed: lines.filter((l) => l.borrowed), cut_count: 46, rejected_log: rejected,
+      };
+    },
+    apps() {
+      return {
+        detected: [
+          { app_id: "com.whatsapp", name: "WhatsApp", source: "wa", notif_count: 184, priority: "normal" },
+          { app_id: "com.google.gmail", name: "Gmail", source: "mail", notif_count: 96, priority: "priority" },
+          { app_id: "com.apple.mobilesms", name: "Messages", source: "sms", notif_count: 41, priority: "priority" },
+          { app_id: "com.snapchat", name: "Snapchat", source: "snapchat", notif_count: 73, priority: "muted" },
+          { app_id: "com.instagram", name: "Instagram", source: "other", notif_count: 210, priority: "muted" },
+          { app_id: "com.facebook", name: "Facebook", source: "facebook", notif_count: 58, priority: "muted" },
+          { app_id: "com.telegram", name: "Telegram", source: "telegram", notif_count: 33, priority: "normal" },
+          { app_id: "com.slack", name: "Slack", source: "slack", notif_count: 122, priority: "normal" },
+          { app_id: "com.discord", name: "Discord", source: "other", notif_count: 67, priority: "normal" },
+          { app_id: "com.microsoft.teams", name: "Teams", source: "other", notif_count: 51, priority: "normal" },
+          { app_id: "com.signal", name: "Signal", source: "other", notif_count: 12, priority: "priority" },
+          { app_id: "com.google.android.calendar", name: "Calendar", source: "other", notif_count: 19, priority: "priority" },
+        ],
+        rules: [
+          { app_id: "com.snapchat", action: "muted", note: "Streak nudges silenced" },
+          { app_id: "com.google.gmail", action: "priority", note: "Financial senders boosted" },
+        ],
+      };
+    },
+    emails() {
+      return {
+        accounts: [
+          { email: "jarajan123@gmail.com", host: "imap.gmail.com", port: 993, last_polled: util.ago(11 * 60000), status: "ok", folders: 3 },
+          { email: "imrajan098@gmail.com", host: "imap.gmail.com", port: 993, last_polled: util.ago(182 * 60000), status: "ok", folders: 2 },
+        ],
+      };
+    },
+    drill() {
+      const cases = [
+        { id: 1, scenario: "Highway breakdown (family)", truth: "EMERGENCY", predicted: "EMERGENCY", verdict: "TP", latency_ms: 412 },
+        { id: 2, scenario: "Bank fraud debit alert", truth: "EMERGENCY", predicted: "EMERGENCY", verdict: "TP", latency_ms: 388 },
+        { id: 3, scenario: "Mom hospital admission", truth: "EMERGENCY", predicted: "EMERGENCY", verdict: "TP", latency_ms: 401 },
+        { id: 4, scenario: "Server down prod", truth: "EMERGENCY", predicted: "EMERGENCY", verdict: "TP", latency_ms: 445 },
+        { id: 5, scenario: "Rent due tomorrow", truth: "EMERGENCY", predicted: "EMERGENCY", verdict: "TP", latency_ms: 372 },
+        { id: 6, scenario: "Pizza order delivered", truth: "NOISE", predicted: "NOISE", verdict: "TN", latency_ms: 351 },
+        { id: 7, scenario: "LinkedIn 12 searches", truth: "NOISE", predicted: "NOISE", verdict: "TN", latency_ms: 339 },
+        { id: 8, scenario: "Group meme storm", truth: "NOISE", predicted: "NOISE", verdict: "TN", latency_ms: 358 },
+        { id: 9, scenario: "Promo 40% off", truth: "NOISE", predicted: "NOISE", verdict: "TN", latency_ms: 366 },
+        { id: 10, scenario: "Low battery warning", truth: "EMERGENCY", predicted: "NOISE", verdict: "FN", latency_ms: 421 },
+      ];
+      const TP = cases.filter((c) => c.verdict === "TP").length;
+      const FN = cases.filter((c) => c.verdict === "FN").length;
+      const FP = cases.filter((c) => c.verdict === "FP").length;
+      const TN = cases.filter((c) => c.verdict === "TN").length;
+      const emergencies = TP + FN;
+      const recall = emergencies ? TP / emergencies : 0;
+      const precision = TP + FP ? TP / (TP + FP) : 0;
+      const avgLatency = cases.reduce((s, c) => s + c.latency_ms, 0) / cases.length / 1000;
+      const silenceIntegrity = 1 - FN / cases.length;
+      return {
+        summary: {
+          recall: +(recall * 100).toFixed(1), precision: +(precision * 100).toFixed(1),
+          avg_latency_sec: +avgLatency.toFixed(2), silence_integrity_pct: +(silenceIntegrity * 100).toFixed(1),
+          TP, FN, FP, TN,
+        },
+        cases,
+      };
+    },
+    collect() { return { scanned: 312, inserted: 47, duplicates: 263, errors: 2 }; },
+    classify() { return { classified: 47 }; },
+    testNotify(score) {
+      const s = score != null ? score : +(0.3 + Math.random() * 2.6).toFixed(2);
+      return { score: s, decision: s >= 0.55 ? "INTERRUPT" : "SILENCE", model: "gemma2:2b", latency_ms: Math.round(380 + Math.random() * 90) };
+    },
+    saveApp() { return { success: true }; },
+    deleteApp() { return { success: true }; },
+    saveEmail() { return { success: true }; },
+    deleteEmail() { return { success: true }; },
+    syncEmails() { return { success: true, fetched: 14 }; },
+    simulateEmail() { return { success: true, injected: 5 }; },
+    notifySummary() { return { title: "HUSH — 3h Brief Ready", subtitle: "4 lines · 46 cut", body: "Quiet summary. 0 emergencies." }; },
+  };
+  HUSH.mock = mock;
+})();
+  </script>
+
+  <script>
+/* =====================================================================
+   HUSH — api.js  (REST client vs live backend, demo fallback)
+   ===================================================================== */
+(function () {
+  "use strict";
+  const HUSH = (window.HUSH = window.HUSH || {});
+  const BASE = (typeof window !== "undefined" && window.location.origin && window.location.origin !== "null" && window.location.protocol.startsWith("http")) ? window.location.origin : "http://localhost:8484";
+  const TIMEOUT_MS = 60000;
+  let demoMode = false, warned = false;
+
+  function setDemo(on) {
+    if (on === demoMode) return;
+    demoMode = on;
+    if (HUSH.ui && HUSH.ui.setDemoPill) HUSH.ui.setDemoPill(on);
+    if (HUSH.ui && HUSH.ui.setConn) HUSH.ui.setConn(on ? "bad" : "ok", on ? "demo data" : "live");
+  }
+  function isDemo() { return demoMode; }
+
+  async function raw(path, opts) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(BASE + path, {
+        method: (opts && opts.method) || "GET",
+        headers: { "Content-Type": "application/json", ...((opts && opts.headers) || {}) },
+        body: opts && opts.body != null ? JSON.stringify(opts.body) : undefined,
+        signal: ctrl.signal, mode: "cors",
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status + " " + path);
+      const txt = await res.text();
+      return txt ? JSON.parse(txt) : {};
+    } finally { clearTimeout(t); }
+  }
+
+  async function call(path, opts, mockFactory) {
+    try {
+      const data = await raw(path, opts);
+      if (demoMode) setDemo(false);
+      return data;
+    } catch (e) {
+      if (!warned) {
+        warned = true;
+        if (HUSH.ui && HUSH.ui.toast)
+          HUSH.ui.toast("Hush backend unreachable at " + BASE + " — showing demo data", "warn");
+      }
+      setDemo(true);
+      return mockFactory();
+    }
+  }
+
+  const api = {
+    BASE, isDemo,
+    getStatus() { return call("/api/status", null, HUSH.mock.status); },
+    setStatus(active) {
+      return call("/api/status", { method: "POST", body: { active } },
+        () => ({ success: true, status: active ? "active" : "paused", is_active: active }));
+    },
+    getSettings() { return call("/api/settings", null, HUSH.mock.settings); },
+    setSettings(min) {
+      return call("/api/settings", { method: "POST", body: { cadence_minutes: min } },
+        () => ({ success: true, cadence_minutes: min }));
+    },
+    getBrief() { return call("/api/brief", null, HUSH.mock.brief); },
+    collect() { return call("/api/collect", { method: "POST", body: {} }, HUSH.mock.collect); },
+    classify() { return call("/api/classify", { method: "POST", body: {} }, HUSH.mock.classify); },
+    getApps() { return call("/api/apps", null, HUSH.mock.apps); },
+    saveApp(app) { return call("/api/apps/save", { method: "POST", body: app }, HUSH.mock.saveApp); },
+    deleteApp(appId) { return call("/api/apps/delete", { method: "POST", body: { app_id: appId } }, HUSH.mock.deleteApp); },
+    testNotify(payload) {
+      return call("/api/apps/test-notify", { method: "POST", body: payload }, () => HUSH.mock.testNotify());
+    },
+    getEmails() { return call("/api/emails", null, HUSH.mock.emails); },
+    saveEmail(acct) { return call("/api/emails/save", { method: "POST", body: acct }, HUSH.mock.saveEmail); },
+    deleteEmail(email) { return call("/api/emails/delete", { method: "POST", body: { email } }, HUSH.mock.deleteEmail); },
+    syncEmails() { return call("/api/emails/sync", { method: "POST", body: {} }, HUSH.mock.syncEmails); },
+    simulateEmail(email) { return call("/api/emails/simulate", { method: "POST", body: { email } }, HUSH.mock.simulateEmail); },
+    notifySummary() { return call("/api/notify-summary", { method: "POST", body: {} }, HUSH.mock.notifySummary); },
+    drill() { return call("/api/drill", { method: "POST", body: {} }, HUSH.mock.drill); },
+  };
+  HUSH.api = api;
+})();
+  </script>
+
+  <script>
+/* =====================================================================
+   HUSH — ui.js  (render all six tabs + toast / connection indicators)
+   ===================================================================== */
+(function () {
+  "use strict";
+  const HUSH = (window.HUSH = window.HUSH || {});
+  const U = HUSH.util;
+  const ui = {};
+  let viewEl, toastWrap, connDot, connText, demoPill, statusText;
+
+  ui.init = function () {
+    viewEl = document.getElementById("view");
+    toastWrap = document.getElementById("toastWrap");
+    connDot = document.getElementById("connDot");
+    connText = document.getElementById("connText");
+    demoPill = document.getElementById("demoPill");
+    statusText = document.getElementById("statusText");
+  };
+
+  const ICONS = { ok: "✅", warn: "⚠️", err: "⛔", info: "ℹ️" };
+  ui.toast = function (msg, type) {
+    type = type || "info";
+    const t = document.createElement("div");
+    t.className = "toast " + type;
+    t.innerHTML = `<span class="t-ico">${ICONS[type] || ICONS.info}</span><span>${U.escape(msg)}</span>`;
+    toastWrap.appendChild(t);
+    setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 260); }, 3800);
+  };
+  ui.setConn = function (state, text) {
+    if (!connDot) return;
+    connDot.className = "dot " + (state === "ok" ? "ok" : state === "bad" ? "bad" : "");
+    connText.textContent = text || state;
+  };
+  ui.setDemoPill = function (on) { if (demoPill) demoPill.hidden = !on; };
+  ui.setStatusText = function (active) {
+    if (!statusText) return;
+    statusText.textContent = active ? "ON" : "OFF";
+    statusText.className = active ? "" : "off";
+  };
+
+  function skeletonCards(n) {
+    let h = "";
+    for (let i = 0; i < n; i++) {
+      h += `<div class="sk-card"><div class="skeleton" style="width:40%"></div>` +
+           `<div class="skeleton" style="width:90%"></div>` +
+           `<div class="skeleton" style="width:70%"></div></div>`;
+    }
+    return h;
+  }
+  function emptyState(ico, msg) {
+    return `<div class="empty"><div class="e-ico">${ico}</div><div class="e-msg">${U.escape(msg)}</div></div>`;
+  }
+  function setActiveNav(tab) {
+    document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+  }
+
+  const RENDER = {
+    brief: renderBrief, cadence: renderCadence, apps: renderApps,
+    emails: renderEmails, drill: renderDrill, discard: renderDiscard,
+  };
+  ui.show = async function (tab) {
+    setActiveNav(tab);
+    if (RENDER[tab]) { try { await RENDER[tab](); } catch (e) { ui.toast("Render error: " + e.message, "err"); } }
+  };
+
+  /* ---- TAB 1: The Brief ---- */
+  async function renderBrief() {
+    viewEl.innerHTML =
+      `<div class="section-head"><div><div class="section-title">The Four Lines</div>` +
+      `<div class="section-sub">Quiet digest · up to 4 items every cycle</div></div></div>` + skeletonCards(4);
+    const b = await HUSH.api.getBrief();
+    const ws = U.clock(b.window_start), we = U.clock(b.window_end), next = U.clock(b.next_brief_time);
+    let html =
+      `<div class="section-head"><div><div class="section-title">The Four Lines</div>` +
+      `<div class="section-sub">Quiet digest · up to 4 items every cycle</div></div>` +
+      `<span class="window-badge">⏱ ${U.escape(ws)} – ${U.escape(we)}</span></div>`;
+    html += `<div class="card">`;
+    if (!b.lines || !b.lines.length) {
+      html += emptyState("📭", "No notifications cleared the bar this window.");
+    } else {
+      b.lines.forEach((l) => {
+        html +=
+          `<div class="brief-line">` +
+            `<div class="bl-tags"><span class="badge ${U.tagClass(l.reason_tag)}">${U.tagLabel(l.reason_tag)}</span></div>` +
+            `<span class="pill">${U.sourceLabel(l.source)}</span>` +
+            `<div>` +
+              `<div class="bl-title">${U.escape(l.title)}</div>` +
+              `<div class="bl-body">${U.escape(l.body)}</div>` +
+              `<div class="bl-meta">${U.escape(l.source)} · ${U.clock(l.received_at)} · score ${U.score(l.score)}</div>` +
+              (l.borrowed ? `<div class="borrowed-note">↳ (borrowed slot)</div>` : "") +
+            `</div></div>`;
+      });
+    }
+    html += `</div>`;
+    html +=
+      `<div class="brief-footer"><div><span class="cut">${U.escape(String(b.cut_count))} cut</span> ` +
+      `<span class="muted tiny">silenced this window</span></div>` +
+      `<div class="next">Next brief at ${U.escape(next)}</div></div>`;
+    viewEl.innerHTML = html;
+  }
+
+  /* ---- TAB 2: Cadence ---- */
+  async function renderCadence() {
+    viewEl.innerHTML = skeletonCards(2);
+    const s = await HUSH.api.getSettings();
+    const current = s.cadence_minutes || 180;
+    const opts = [
+      { m: 15, label: "15 Mins", sub: "Quick Test" }, { m: 30, label: "30 Mins", sub: "" },
+      { m: 60, label: "1 Hour", sub: "" }, { m: 120, label: "2 Hours", sub: "" },
+      { m: 180, label: "3 Hours", sub: "Default" }, { m: 240, label: "4 Hours", sub: "" },
+    ];
+    let html =
+      `<div class="info-banner"><span class="ib-ico">🔒</span><div>` +
+      `<b>Silence Integrity</b> — Raw notifications stay 100% silent during the focus window. ` +
+      `Only the periodic summary alert is sent. Nothing leaks to your lock screen.</div></div>` +
+      `<div class="card"><div class="section-head"><div class="section-title">Quiet Window Interval</div>` +
+      `<div class="section-sub mono">current: ${current} min</div></div><div class="intervals">`;
+    opts.forEach((o) => {
+      html += `<button class="interval-btn ${o.m === current ? "active" : ""}" data-min="${o.m}">` +
+        `${o.label}${o.sub ? `<div class="tiny muted">${o.sub}</div>` : ""}</button>`;
+    });
+    html += `</div></div>`;
+    html +=
+      `<div class="card"><div class="section-head"><div class="section-title">Push Summary Alert</div>` +
+      `<div class="section-sub">Trigger a native OS notification now (no message bodies).</div></div>` +
+      `<button class="btn btn-accent btn-block" id="btnSummary">🔔 Send Summary Notification Now</button></div>`;
+    viewEl.innerHTML = html;
+    viewEl.querySelectorAll(".interval-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const min = Number(btn.dataset.min);
+        btn.disabled = true;
+        const r = await HUSH.api.setSettings(min);
+        btn.disabled = false;
+        viewEl.querySelectorAll(".interval-btn").forEach((b) =>
+          b.classList.toggle("active", Number(b.dataset.min) === r.cadence_minutes));
+        ui.toast(`Cadence set to ${r.cadence_minutes} min`, "ok");
+      });
+    });
+    document.getElementById("btnSummary").addEventListener("click", async (e) => {
+      e.currentTarget.disabled = true;
+      const r = await HUSH.api.notifySummary();
+      e.currentTarget.disabled = false;
+      ui.toast(`Pushed: ${r.title || "summary alert"}`, "ok");
+    });
+  }
+
+  /* ---- TAB 3: Apps & Channels ---- */
+  async function renderApps() {
+    viewEl.innerHTML = skeletonCards(3);
+    const data = await HUSH.api.getApps();
+    const presets = [
+      { app_id: "com.facebook", name: "Facebook", source: "facebook" },
+      { app_id: "com.snapchat", name: "Snapchat", source: "snapchat" },
+      { app_id: "org.telegram", name: "Telegram", source: "telegram" },
+      { app_id: "com.slack", name: "Slack", source: "slack" },
+      { app_id: "com.discord", name: "Discord", source: "other" },
+      { app_id: "com.microsoft.teams", name: "Teams", source: "other" },
+      { app_id: "org.thoughtcrime.securesms", name: "Signal", source: "other" },
+      { app_id: "com.google.android.calendar", name: "Calendar", source: "other" },
+    ];
+    let html =
+      `<div class="card"><div class="section-head"><div class="section-title">Quick App Presets</div>` +
+      `<div class="section-sub">Tap to add a channel at Normal priority.</div></div><div class="chips">`;
+    presets.forEach((p) =>
+      html += `<button class="chip" data-app='${JSON.stringify(p).replace(/'/g, "&#39;")}'>+ ${U.escape(p.name)}</button>`);
+    html += `</div></div>`;
+    html +=
+      `<div class="card"><div class="section-head"><div class="section-title">🧪 Live Sandbox</div>` +
+      `<div class="section-sub">Route any message through Gemma 2B live.</div></div>` +
+      `<div class="form-grid">` +
+      `<div class="field"><label>App ID</label><input class="input" id="sbApp" value="com.toyopagroup.picaboo"></div>` +
+      `<div class="field"><label>Sender / Title</label><input class="input" id="sbTitle" placeholder="Rahul"></div></div>` +
+      `<div class="field"><label>Message body</label>` +
+      `<textarea class="input" id="sbBody" placeholder="Emergency on highway">Emergency on highway</textarea></div>` +
+      `<button class="btn btn-accent" id="sbRun">▶ Run through Gemma 2B</button><div id="sbResult"></div></div>`;
+    html +=
+      `<div class="card"><div class="section-head"><div class="section-title">Detected Apps</div>` +
+      `<div class="section-sub">${data.detected.length} sources · notification counters</div></div>` +
+      `<div class="table-scroll"><table class="table"><thead><tr>` +
+      `<th>App</th><th>Source</th><th>Notifs</th><th>Priority</th><th></th></tr></thead><tbody>`;
+    data.detected.forEach((a) => {
+      const pr = a.priority || "normal";
+      html +=
+        `<tr><td><b>${U.escape(a.name)}</b><div class="tiny muted mono">${U.escape(a.app_id)}</div></td>` +
+        `<td><span class="pill">${U.sourceLabel(a.source)}</span></td>` +
+        `<td class="num">${a.notif_count}</td>` +
+        `<td><div class="seg" data-seg="${U.escape(a.app_id)}">` +
+        `<button class="${pr === "priority" ? "sel prio" : ""}" data-p="priority">⭐</button>` +
+        `<button class="${pr === "normal" ? "sel norm" : ""}" data-p="normal">🔔</button>` +
+        `<button class="${pr === "muted" ? "sel mute" : ""}" data-p="muted">🔇</button></div></td>` +
+        `<td><button class="btn del-app" data-del="${U.escape(a.app_id)}">Delete</button></td></tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+    viewEl.innerHTML = html;
+
+    viewEl.querySelectorAll(".chip").forEach((c) =>
+      c.addEventListener("click", async () => {
+        const p = JSON.parse(c.dataset.app);
+        await HUSH.api.saveApp({ app_id: p.app_id, name: p.name, source: p.source, priority: "normal" });
+        ui.toast(`Added ${p.name}`, "ok"); renderApps();
+      }));
+    document.getElementById("sbRun").addEventListener("click", async (e) => {
+      const btn = e.currentTarget; btn.disabled = true;
+      const payload = {
+        app_id: document.getElementById("sbApp").value.trim(),
+        title: document.getElementById("sbTitle").value.trim() || "Unknown",
+        body: document.getElementById("sbBody").value.trim(),
+      };
+      const r = await HUSH.api.testNotify(payload);
+      btn.disabled = false;
+      const interrupt = r.decision === "INTERRUPT";
+      document.getElementById("sbResult").innerHTML =
+        `<div class="info-banner" style="margin-top:12px;border-color:${interrupt ? "rgba(255,123,114,.4)" : "rgba(63,185,80,.4)"};background:${interrupt ? "rgba(255,123,114,.08)" : "rgba(63,185,80,.08)"}">` +
+        `<span class="ib-ico">${interrupt ? "🚨" : "🔕"}</span><div>` +
+        `<b style="color:${interrupt ? "var(--crimson)" : "var(--emerald)"}">${r.decision}</b> ` +
+        `· score <span class="mono">${U.score(r.score)}</span> · model ${U.escape(r.model || "gemma2:2b")} · ${r.latency_ms}ms</div></div>`;
+    });
+    viewEl.querySelectorAll(".seg").forEach((seg) => {
+      const appId = seg.dataset.seg;
+      seg.querySelectorAll("button").forEach((b) =>
+        b.addEventListener("click", async () => {
+          const p = b.dataset.p;
+          await HUSH.api.saveApp({ app_id: appId, priority: p });
+          seg.querySelectorAll("button").forEach((x) => {
+            x.classList.remove("sel", "prio", "norm", "mute");
+            if (x === b) x.classList.add("sel", U.priorityClass(p));
+          });
+          ui.toast(`Priority → ${U.priorityLabel(p).replace(/[^a-zA-Z]/g, "")}`, "info");
+        }));
+    });
+    viewEl.querySelectorAll(".del-app").forEach((b) =>
+      b.addEventListener("click", async () => {
+        const id = b.dataset.del;
+        if (!confirm("Remove routing for this app?")) return;
+        await HUSH.api.deleteApp(id);
+        ui.toast("App removed", "warn"); renderApps();
+      }));
+  }
+
+  /* ---- TAB 4: Email Accounts ---- */
+  async function renderEmails() {
+    viewEl.innerHTML = skeletonCards(2);
+    const data = await HUSH.api.getEmails();
+    const presetAddrs = ["jarajan123@gmail.com", "imrajan098@gmail.com"];
+    let html =
+      `<div class="card"><div class="section-head"><div class="section-title">Quick Presets</div>` +
+      `<div class="section-sub">Pre-fill the IMAP form below.</div></div><div class="chips">`;
+    presetAddrs.forEach((e) => html += `<button class="chip" data-email="${U.escape(e)}">+ ${U.escape(e)}</button>`);
+    html += `</div></div>`;
+    html +=
+      `<div class="card"><div class="section-head"><div class="section-title">IMAP Setup</div>` +
+      `<div class="section-sub">Zero-notification — mail is read, never pushed.</div></div>` +
+      `<div class="form-grid">` +
+      `<div class="field"><label>Email</label><input class="input" id="emEmail" placeholder="you@gmail.com"></div>` +
+      `<div class="field"><label>Host</label><input class="input" id="emHost" value="imap.gmail.com"></div>` +
+      `<div class="field"><label>Port</label><input class="input" id="emPort" value="993"></div>` +
+      `<div class="field"><label>App Password</label><input class="input" id="emPass" type="password" placeholder="16-char app password"></div>` +
+      `</div><div class="chips" style="margin-top:4px">` +
+      `<button class="btn btn-accent" id="emSave">💾 Save Account</button>` +
+      `<button class="btn" id="emSync">🔄 Sync Now</button>` +
+      `<button class="btn" id="emInject">🧪 Inject Sample Emails</button></div></div>`;
+    html +=
+      `<div class="card"><div class="section-head"><div class="section-title">Connected Mailboxes</div>` +
+      `<div class="section-sub">${data.accounts.length} account(s)</div></div>` +
+      `<div class="table-scroll"><table class="table"><thead><tr>` +
+      `<th>Email</th><th>Host</th><th>Last Polled</th><th>Status</th><th></th></tr></thead><tbody>`;
+    data.accounts.forEach((a) => {
+      const ok = a.status === "ok";
+      html +=
+        `<tr><td><b>${U.escape(a.email)}</b></td>` +
+        `<td class="mono tiny">${U.escape(a.host)}:${a.port}</td>` +
+        `<td class="mono tiny">${a.last_polled ? U.rel(a.last_polled) : "—"}</td>` +
+        `<td><span class="badge ${ok ? "tag-money" : "tag-deadline"}">${ok ? "OK" : "ERR"}</span></td>` +
+        `<td><button class="btn del-em" data-del="${U.escape(a.email)}">Remove</button></td></tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+    viewEl.innerHTML = html;
+
+    viewEl.querySelectorAll(".chip[data-email]").forEach((c) =>
+      c.addEventListener("click", () => {
+        document.getElementById("emEmail").value = c.dataset.email;
+        document.getElementById("emHost").value = "imap.gmail.com";
+        document.getElementById("emPort").value = "993";
+        document.getElementById("emPass").focus();
+        ui.toast("Prefilled — add app password & save", "info");
+      }));
+    document.getElementById("emSave").addEventListener("click", async () => {
+      const acct = {
+        email: document.getElementById("emEmail").value.trim(),
+        host: document.getElementById("emHost").value.trim(),
+        port: Number(document.getElementById("emPort").value) || 993,
+        password: document.getElementById("emPass").value,
+      };
+      if (!acct.email) return ui.toast("Email required", "warn");
+      const r = await HUSH.api.saveEmail(acct);
+      if (r.success) { ui.toast(`Saved ${acct.email}`, "ok"); renderEmails(); }
+    });
+    document.getElementById("emSync").addEventListener("click", async (e) => {
+      e.currentTarget.disabled = true;
+      const r = await HUSH.api.syncEmails();
+      e.currentTarget.disabled = false;
+      ui.toast(r.fetched != null ? `Synced ${r.fetched} messages` : "Sync triggered", "ok");
+    });
+    document.getElementById("emInject").addEventListener("click", async (e) => {
+      const email = document.getElementById("emEmail").value.trim() || "jarajan123@gmail.com";
+      e.currentTarget.disabled = true;
+      const r = await HUSH.api.simulateEmail(email);
+      e.currentTarget.disabled = false;
+      ui.toast(`Injected ${r.injected} sample emails`, "ok");
+    });
+    viewEl.querySelectorAll(".del-em").forEach((b) =>
+      b.addEventListener("click", async () => {
+        await HUSH.api.deleteEmail(b.dataset.del);
+        ui.toast("Mailbox removed", "warn"); renderEmails();
+      }));
+  }
+
+  /* ---- TAB 5: Fire Drill ---- */
+  async function renderDrill() {
+    viewEl.innerHTML =
+      `<div class="section-head"><div><div class="section-title">Fire Drill &amp; Scorecard</div>` +
+      `<div class="section-sub">10 staged emergencies vs ground truth</div></div>` +
+      `<button class="btn btn-accent" id="drillRun">🎯 Run Drill</button></div>` + skeletonCards(4);
+    await runDrill();
+    document.getElementById("drillRun").addEventListener("click", runDrill);
+  }
+  async function runDrill() {
+    const r = await HUSH.api.drill();
+    const s = r.summary;
+    let html =
+      `<div class="section-head"><div><div class="section-title">Fire Drill &amp; Scorecard</div>` +
+      `<div class="section-sub">10 staged emergencies vs ground truth</div></div>` +
+      `<button class="btn btn-accent" id="drillRun">🎯 Run Drill</button></div>`;
+    const recallGood = s.recall >= 90, silGood = s.silence_integrity_pct >= 90;
+    html +=
+      `<div class="metrics">` +
+      metric("Emergency Recall", s.recall + "%", "caught emergencies", recallGood ? "good" : "warn") +
+      metric("Precision", s.precision + "%", "true interrupts", s.precision >= 90 ? "good" : "warn") +
+      metric("Decision Latency", s.avg_latency_sec + "s", "avg Gemma 2B", "good") +
+      metric("Silence Integrity", s.silence_integrity_pct + "%", "noise kept quiet", silGood ? "good" : "warn") +
+      `</div>`;
+    html +=
+      `<div class="card" style="margin-top:16px"><div class="section-head"><div class="section-title">Staged Cases</div>` +
+      `<div class="section-sub">TP ${s.TP} · FN ${s.FN} · FP ${s.FP} · TN ${s.TN}</div></div>` +
+      `<div class="table-scroll"><table class="table"><thead><tr>` +
+      `<th>#</th><th>Scenario</th><th>Truth</th><th>Predicted</th><th>Verdict</th><th>Latency</th></tr></thead><tbody>`;
+    r.cases.forEach((c) => {
+      html +=
+        `<tr><td class="num">${c.id}</td><td>${U.escape(c.scenario)}</td>` +
+        `<td class="mono tiny">${U.escape(c.truth)}</td><td class="mono tiny">${U.escape(c.predicted)}</td>` +
+        `<td><span class="verdict ${U.verdictClass(c.verdict)}">${U.escape(c.verdict)}</span></td>` +
+        `<td class="num tiny">${c.latency_ms}ms</td></tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+    viewEl.innerHTML = html;
+    const btn = document.getElementById("drillRun");
+    if (btn) btn.addEventListener("click", runDrill);
+  }
+  function metric(label, value, note, cls) {
+    return `<div class="metric ${cls || ""}"><div class="m-label">${U.escape(label)}</div>` +
+      `<div class="m-value">${U.escape(value)}</div><div class="m-note">${U.escape(note)}</div></div>`;
+  }
+
+  /* ---- TAB 6: Discard Pile ---- */
+  async function renderDiscard() {
+    viewEl.innerHTML = skeletonCards(2);
+    const b = await HUSH.api.getBrief();
+    const log = b.rejected_log || [];
+    let html =
+      `<div class="section-head"><div><div class="section-title">Discard Pile</div>` +
+      `<div class="section-sub">Audit log of silenced notifications</div></div>` +
+      `<span class="window-badge">${log.length} silenced</span></div>` +
+      `<div class="card"><div class="table-scroll"><table class="table"><thead><tr>` +
+      `<th>Time</th><th>App</th><th>Sender</th><th>Body</th><th>Score</th><th>Reason</th></tr></thead><tbody>`;
+    if (!log.length) {
+      html += `<tr><td colspan="6">${emptyState("🗑️", "Nothing silenced this window.")}</td></tr>`;
+    } else {
+      log.forEach((r) => {
+        html +=
+          `<tr><td class="mono tiny">${U.clock(r.timestamp)}</td>` +
+          `<td class="tiny muted">${U.escape(r.app)}</td>` +
+          `<td>${U.escape(r.sender)}</td>` +
+          `<td class="tiny muted">${U.escape(r.body)}</td>` +
+          `<td class="num">${U.score(r.score)}</td>` +
+          `<td class="tiny">${U.escape(r.reason)}</td></tr>`;
+      });
+    }
+    html += `</tbody></table></div></div>`;
+    viewEl.innerHTML = html;
+  }
+
+  HUSH.ui = ui;
+})();
+  </script>
+
+  <script>
+/* =====================================================================
+   HUSH — app.js  (bootstrap + control wiring)
+   ===================================================================== */
+(function () {
+  "use strict";
+  const HUSH = window.HUSH;
+  const ui = HUSH.ui, api = HUSH.api;
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    ui.init();
+
+    document.getElementById("nav").addEventListener("click", (e) => {
+      const btn = e.target.closest(".nav-item");
+      if (!btn) return;
+      ui.show(btn.dataset.tab);
+    });
+
+    const power = document.getElementById("powerSwitch");
+    const banner = document.getElementById("pauseBanner");
+    function applyPower(active) {
+      power.checked = active;
+      ui.setStatusText(active);
+      banner.hidden = active;
+    }
+    power.addEventListener("change", async () => {
+      power.disabled = true;
+      const r = await api.setStatus(power.checked);
+      power.disabled = false;
+      applyPower(r.is_active);
+      ui.toast(r.is_active ? "Hush is ACTIVE — quiet filtering on" : "Hush PAUSED", r.is_active ? "ok" : "warn");
+    });
+
+    try {
+      const st = await api.getStatus();
+      applyPower(st.is_active);
+      ui.setConn(api.isDemo() ? "bad" : "ok", api.isDemo() ? "demo" : "live");
+    } catch (e) {
+      applyPower(true);
+      ui.setConn("bad", "demo");
+    }
+
+    document.getElementById("btnSync").addEventListener("click", async (e) => {
+      e.currentTarget.disabled = true;
+      const r = await api.collect();
+      e.currentTarget.disabled = false;
+      ui.toast(`Scanned ${r.scanned} · inserted ${r.inserted} · ${r.duplicates} dup · ${r.errors} err`, "ok");
+    });
+    document.getElementById("btnClassify").addEventListener("click", async (e) => {
+      e.currentTarget.disabled = true;
+      const r = await api.classify();
+      e.currentTarget.disabled = false;
+      ui.toast(`Classified ${r.classified} items via Gemma 2B`, "ok");
+    });
+    document.getElementById("btnDrill").addEventListener("click", async () => {
+      ui.show("drill");
+      ui.toast("Running fire drill…", "info");
+    });
+
+    ui.show("brief");
+  });
+})();
+  </script>
+</body>
+</html>
