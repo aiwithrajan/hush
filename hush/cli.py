@@ -13,6 +13,7 @@ from hush.db import (
     insert_judgment,
 )
 from hush.collector import collect_macos_notifications
+from hush.email_collector import poll_imap_emails
 from hush.normaliser import to_classifier_projection
 from hush.classifier import classify_notification
 from hush.router import generate_brief
@@ -39,16 +40,21 @@ def init():
 
 @cli.command()
 def ingest():
-    """Copies the macOS notification store and normalizes new records into Hush DB."""
+    """Copies the macOS notification store and polls configured IMAP email into Hush DB."""
     init_db()
     try:
         stats = collect_macos_notifications()
+        email_stats = poll_imap_emails()
+        total_scanned = stats['scanned'] + email_stats['scanned']
+        total_inserted = stats['inserted'] + email_stats['inserted']
+        total_duplicates = stats['duplicates'] + email_stats['duplicates']
+        email_note = f" (incl. {email_stats['inserted']} emails)" if email_stats['scanned'] > 0 else ""
         console.print(
             f"[bold green]✔ Ingest Complete:[/bold green] "
-            f"Scanned [bold]{stats['scanned']}[/bold] records · "
-            f"[bold green]{stats['inserted']} new inserted[/bold green] · "
-            f"[dim]{stats['duplicates']} duplicates skipped[/dim] · "
-            f"[dim red]{stats['errors']} errors[/dim red]"
+            f"Scanned [bold]{total_scanned}[/bold] records · "
+            f"[bold green]{total_inserted} new inserted{email_note}[/bold green] · "
+            f"[dim]{total_duplicates} duplicates skipped[/dim] · "
+            f"[dim red]{stats['errors'] + email_stats['errors']} errors[/dim red]"
         )
     except Exception as e:
         console.print(f"[bold red]Ingest failed:[/bold red] {e}")

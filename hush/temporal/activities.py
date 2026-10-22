@@ -14,6 +14,7 @@ from hush.db import (
     escalate_interrupt,
 )
 from hush.collector import collect_macos_notifications
+from hush.email_collector import poll_imap_emails
 from hush.classifier import classify_notification
 from hush.normaliser import to_classifier_projection
 from hush.router import generate_brief
@@ -64,15 +65,16 @@ class BriefSummary:
 
 @activity.defn
 async def activity_ingest_notifications() -> IngestOutput:
-    """Safely ingests raw notifications from macOS usernoted database."""
+    """Safely ingests raw notifications from macOS database and optional IMAP email."""
     with get_db() as conn:
         stats = collect_macos_notifications(dest_conn=conn)
+        email_stats = poll_imap_emails(dest_conn=conn)
         conn.commit()
     return IngestOutput(
-        scanned=stats["scanned"],
-        inserted=stats["inserted"],
-        duplicates=stats["duplicates"],
-        errors=stats["errors"],
+        scanned=stats["scanned"] + email_stats["scanned"],
+        inserted=stats["inserted"] + email_stats["inserted"],
+        duplicates=stats["duplicates"] + email_stats["duplicates"],
+        errors=stats["errors"] + email_stats["errors"],
     )
 
 

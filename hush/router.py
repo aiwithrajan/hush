@@ -1,9 +1,9 @@
 import json
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from hush.config import BRIEF_QUOTAS, BRIEF_MAX_LINES, T_BRIEF, T_HIGH
-from hush.db import get_db, insert_brief
+from hush.db import get_db, insert_brief, get_setting
 
 
 def determine_reason_tag(notif: Dict[str, Any], judgment: Dict[str, Any]) -> str:
@@ -25,19 +25,31 @@ def determine_reason_tag(notif: Dict[str, Any], judgment: Dict[str, Any]) -> str
 
 def generate_brief(
     conn: sqlite3.Connection,
-    window_hours: int = 3,
-    end_time: datetime = None,
+    window_hours: Optional[float] = None,
+    window_minutes: Optional[int] = None,
+    end_time: Optional[datetime] = None,
     enforce_threshold: bool = True,
 ) -> Dict[str, Any]:
     """
-    Assembles the 3-hour brief following strict quota and spillover rules.
+    Assembles the brief following strict quota and spillover rules.
     Fixed shape: exactly up to 4 lines.
     Quotas: Email: 2, WhatsApp: 1, Messages/SMS: 1.
     Spillover: unused slots borrowed by global highest score, logged as borrowed_from.
+    Cadence window defaults to DB setting 'cadence_minutes' (default 180 = 3h).
     """
+    if window_minutes is None:
+        if window_hours is not None:
+            window_minutes = int(window_hours * 60)
+        else:
+            try:
+                setting_val = get_setting(conn, "cadence_minutes", default="180")
+                window_minutes = int(setting_val) if setting_val else 180
+            except Exception:
+                window_minutes = 180
+
     if end_time is None:
         end_time = datetime.now().astimezone()
-    start_time = end_time - timedelta(hours=window_hours)
+    start_time = end_time - timedelta(minutes=window_minutes)
 
     start_iso = start_time.isoformat()
     end_iso = end_time.isoformat()
@@ -161,13 +173,13 @@ def generate_brief(
 
     cut_count = len(all_candidates) - len(kept_items)
 
-    # Calculate next brief time (window_end + 3 hours)
+    # Calculate next brief time (window_end + window_minutes)
     try:
         end_dt = datetime.fromisoformat(end_iso)
-        next_brief_dt = end_dt + timedelta(hours=3)
+        next_brief_dt = end_dt + timedelta(minutes=window_minutes)
         next_brief_str = next_brief_dt.strftime("%H:%M")
     except Exception:
-        next_brief_str = "in 3 hours"
+        next_brief_str = f"in {window_minutes}m"
 
     brief_id = insert_brief(
         conn=conn,
@@ -182,6 +194,7 @@ def generate_brief(
         "brief_id": brief_id,
         "window_start": start_iso,
         "window_end": end_iso,
+        "cadence_minutes": window_minutes,
         "lines": kept_items,
         "total_evaluated": len(all_candidates),
         "kept_count": len(kept_items),

@@ -53,6 +53,22 @@ CREATE TABLE IF NOT EXISTS calibration (
     factor REAL
 );
 
+CREATE TABLE IF NOT EXISTS email_accounts (
+    email TEXT PRIMARY KEY,
+    host TEXT NOT NULL DEFAULT 'imap.gmail.com',
+    port INTEGER DEFAULT 993,
+    password TEXT NOT NULL,
+    label TEXT,
+    is_active INTEGER DEFAULT 1,
+    last_polled_at TEXT,
+    last_error TEXT
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_notifications_received_at ON notifications(received_at);
 CREATE INDEX IF NOT EXISTS idx_judgments_score ON judgments(score);
 """
@@ -70,6 +86,82 @@ def get_db(db_path=None) -> sqlite3.Connection:
 def init_db(db_path=None):
     with get_db(db_path) as conn:
         conn.executescript(SCHEMA_SQL)
+
+
+def get_setting(conn: sqlite3.Connection, key: str, default: Optional[str] = None) -> Optional[str]:
+    """Retrieves a persistent setting value."""
+    cur = conn.execute("SELECT value FROM settings WHERE key = ?", (key,))
+    row = cur.fetchone()
+    if row:
+        return row[0]
+    return default
+
+
+def set_setting(conn: sqlite3.Connection, key: str, value: str):
+    """Saves or updates a persistent setting."""
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+        (key, str(value)),
+    )
+    conn.commit()
+
+
+def get_email_accounts(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+    """Fetches all registered email accounts."""
+    cur = conn.execute(
+        "SELECT email, host, port, password, label, is_active, last_polled_at, last_error FROM email_accounts ORDER BY email ASC"
+    )
+    accounts = []
+    for r in cur.fetchall():
+        d = dict(r)
+        # Mask password for API / UI responses
+        d["has_password"] = bool(d["password"])
+        d["password_masked"] = "••••••••" if d["password"] else ""
+        accounts.append(d)
+    return accounts
+
+
+def save_email_account(
+    conn: sqlite3.Connection,
+    email_addr: str,
+    password: str,
+    host: str = "imap.gmail.com",
+    port: int = 993,
+    label: Optional[str] = None,
+    is_active: int = 1,
+):
+    """Registers or updates an email account for background IMAP sync."""
+    conn.execute(
+        """
+        INSERT INTO email_accounts (email, host, port, password, label, is_active)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(email) DO UPDATE SET
+            host = excluded.host,
+            port = excluded.port,
+            password = CASE WHEN excluded.password != '' THEN excluded.password ELSE email_accounts.password END,
+            label = excluded.label,
+            is_active = excluded.is_active
+        """,
+        (email_addr.strip(), host.strip(), port, password.strip(), label or email_addr.split("@")[0], is_active),
+    )
+    conn.commit()
+
+
+def delete_email_account(conn: sqlite3.Connection, email_addr: str):
+    """Deletes a registered email account."""
+    conn.execute("DELETE FROM email_accounts WHERE email = ?", (email_addr.strip(),))
+    conn.commit()
+
+
+def update_email_account_status(conn: sqlite3.Connection, email_addr: str, last_error: Optional[str] = None):
+    """Updates last_polled_at and optional last_error for an email account."""
+    now_iso = datetime.now().astimezone().isoformat()
+    conn.execute(
+        "UPDATE email_accounts SET last_polled_at = ?, last_error = ? WHERE email = ?",
+        (now_iso, last_error, email_addr.strip()),
+    )
+    conn.commit()
+
 
 
 def insert_notification(conn: sqlite3.Connection, notif: Dict[str, Any]) -> bool:
