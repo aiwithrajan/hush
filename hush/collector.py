@@ -1,0 +1,99 @@
+import os
+import shutil
+import sqlite3
+import plistlib
+import tempfile
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+from hush.config import MACOS_NOTIFICATION_DB_PATH
+from hush.normaliser import normalize_record
+from hush.db import get_db, insert_notification
+
+
+def collect_macos_notifications(
+    src_db_path: Optional[Path] = None,
+    dest_conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, int]:
+    """
+    Reads the macOS usernoted SQLite store safely using a read-only copy,
+    parses binary plists, normalizes records, and writes new notifications to Hush DB.
+    """
+    src_path = Path(src_db_path or MACOS_NOTIFICATION_DB_PATH)
+    if not src_path.exists():
+        raise FileNotFoundError(f"macOS notification database not found at {src_path}")
+
+    # Use a temporary directory to create a non-locking copy of db + wal + shm
+    stats = {"scanned": 0, "inserted": 0, "duplicates": 0, "errors": 0}
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_db = Path(tmpdir) / "db_copy"
+        shutil.copy2(src_path, tmp_db)
+
+        # Copy wal and shm files if present
+        for ext in ["-wal", "-shm"]:
+            wal_file = src_path.parent / (src_path.name + ext)
+            if wal_file.exists():
+                shutil.copy2(wal_file, Path(tmpdir) / (tmp_db.name + ext))
+
+        # Query records
+        conn_ro = sqlite3.connect(f"file:{tmp_db}?mode=ro", uri=True)
+        try:
+            cursor = conn_ro.cursor()
+            cursor.execute(
+                """
+                SELECT r.rec_id, a.identifier, r.delivered_date, r.request_date, r.data
+                FROM record r
+                LEFT JOIN app a ON r.app_id = a.app_id
+                ORDER BY r.rec_id ASC
+                """
+            )
+            rows = cursor.fetchall()
+        finally:
+            conn_ro.close()
+
+        # Insert into Hush DB
+        own_conn = False
+        if dest_conn is None:
+            dest_conn = get_db()
+            own_conn = True
+
+        try:
+            for rec_id, app_name, deliv_date, req_date, data in rows:
+                stats["scanned"] += 1
+                try:
+                    plist = plistlib.loads(data)
+                    req = plist.get("req", {})
+                    title = req.get("titl") or ""
+                    body = req.get("body") or ""
+                    subt = req.get("subt") or ""
+
+                    # If body is empty but subt exists, combine them
+                    if subt and not body:
+                        body = subt
+                    elif subt and body:
+                        body = f"{subt} — {body}"
+
+                    cocoa_ts = deliv_date if (deliv_date and deliv_date > 0) else req_date
+
+                    record = normalize_record(
+                        app_id=app_name or "unknown",
+                        title=title,
+                        body=body,
+                        received_cocoa_ts=cocoa_ts,
+                    )
+
+                    inserted = insert_notification(dest_conn, record)
+                    if inserted:
+                        stats["inserted"] += 1
+                    else:
+                        stats["duplicates"] += 1
+                except Exception as err:
+                    stats["errors"] += 1
+
+            if own_conn:
+                dest_conn.commit()
+        finally:
+            if own_conn:
+                dest_conn.close()
+
+    return stats

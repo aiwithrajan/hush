@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hush"
+version = "0.1.0"
+description = "A local attention router that reads every notification so you only have to read four."
+readme = "README.md"
+authors = [{ name = "Hush Team" }]
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = [
+    "httpx>=0.28.0",
+    "rich>=13.0.0",
+    "click>=8.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+hush = "hush.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["hush*"]
