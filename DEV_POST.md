@@ -98,9 +98,10 @@ Open innovation is not just an ideological choice for Hush; **it is the only arc
 
 ## My Agent Session
 
-{% agent_session -FLPM6kshMRqqZ2uqq6FN1byt %}
-
-- **DevRelay Session ID**: `-FLPM6kshMRqqZ2uqq6FN1byt`
+This project was built through autonomous agent pair-programming:
+- **Agent Pairing**: Used Antigravity and DevRelay to instrument the local Gemma 2B inference loop, Temporal durable timer escalation workflows, and the 100% Fire Drill benchmark.
+- **Development Key / Session**: `FLPM6kshMRqqZ2uqq6FN1byt`
+- **Reproducibility**: Complete agent execution steps, commit history, and test logs are documented directly in the [GitHub Repository](https://github.com/aiwithrajan/hush).
 
 ---
 
